@@ -35,7 +35,7 @@ class ProdConfig(BaseConfig):
     Configuração para ambiente de produção na nuvem
     """
     user = os.environ.get('CLOUD_DB_USER', 'Ornilio_neto')
-    senha = os.environ.get('CLOUD_DB_PASSWORD', 'Senhadobanco2025#')
+    senha = os.environ.get('CLOUD_DB_PASSWORD', '@Machado2025')
     host = os.environ.get('CLOUD_DB_HOST', '34.39.255.52')
     senha_encoded = quote_plus(senha)
 
