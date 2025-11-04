@@ -25,7 +25,7 @@ def load_user(user_id):
 # Define a rota padrão (opcional, para teste)
 @app.route('/')
 def index():
-    return 'Aplicação Flask rodando no Google Cloud Run!'
+    return redirect(url_for('main.login'))
 
 # Executa localmente com Flask (para testes)
 if __name__ == "__main__":
