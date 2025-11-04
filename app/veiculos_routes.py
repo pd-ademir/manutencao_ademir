@@ -4,8 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from datetime import datetime
-from app.permissoes import filtrar_query_por_usuario
-
+from .permissoes import filtrar_query_por_usuario
 from .models import db, Veiculo, Placa, Usuario, VeiculoIndisponibilidade, registrar_log
 from .permissoes import requer_tipo
 
