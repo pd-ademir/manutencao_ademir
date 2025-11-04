@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Cadastro Rápido de Checklists</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  <style>
+    @media (min-width: 992px) {
+      .table-responsive {
+        max-width: 100%;
+      }
+    }
+
+    @media (max-width: 991.98px) {
+      .table-responsive {
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <!-- Botão de colapso para mobile -->
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+              aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <!-- Itens do menu -->
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="/">🏠 Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="/?unidade=BAGAM">🚛 Bagam</a></li>
+          <li class="nav-item"><a class="nav-link" href="/unidade/BACRO">🚛 Bacro</a></li>
+          <li class="nav-item"><a class="nav-link" href="/unidade/SPOT%20RN">🚛 Spot RN</a></li>
+          <li class="nav-item"><a class="nav-link" href="/unidade/SPOT%20PE">🚛 Spot PE</a></li>
+          <li class="nav-item"><a class="nav-link" href="/unidade/SMART">🚛 Smart</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <div class="container-fluid mt-4">
+    <h2>📝 Cadastro Direto de Checklists</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="alert alert-{{ messages[0][0] }} mt-3">
+          {{ messages[0][1] }}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="text-end mb-3">
+        <button type="submit" class="btn btn-success">💾 Salvar Tudo</button>
+      </div>
+
+      <div class="table-responsive" style="max-height: 670px; overflow: auto;">
+        <table class="table table-bordered table-sm align-middle text-center w-100">
+          <thead class="table-light" style="background-color: #f8f9fa;">
+            <tr>
+              <th>#</th>
+              <th>Mês</th>
+              <th>Data Registro</th>
+              <th>Placa</th>
+              <th>Item</th>
+              <th>Fonte</th>
+              <th>Tipo</th>
+              <th>Status</th>
+              <th>OS</th>
+              <th>Conclusão</th>
+              <th>Data Serviço</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for i in range(1, 101) %}
+            {% set l = linhas[i-1] %}
+            <tr>
+              <td>
+                {{ i }}
+                <input type="hidden" name="id_{{ i }}" value="{{ l.id }}">
+              </td>
+              <td><input name="mes_{{ i }}" class="form-control" maxlength="7"
+                        style="text-transform: uppercase; width: 100px;"
+                        oninput="this.value = this.value.toUpperCase()"
+                        value="{{ l.mes }}"></td>
+              <td><input name="data_registro_{{ i }}" class="form-control" type="date"
+                        style="width: 130px;"
+                        value="{{ l.data_registro }}"></td>
+              <td><input name="placa_{{ i }}" class="form-control text-uppercase" type="text" maxlength="10"
+                        style="text-transform: uppercase; width: 95px;"
+                        oninput="this.value = this.value.toUpperCase()"
+                        value="{{ l.placa or placa }}"></td>
+              <td><input name="item_{{ i }}" class="form-control" type="text"
+                        style="text-transform: uppercase; width: 560px;"
+                        oninput="this.value = this.value.toUpperCase()"
+                        value="{{ l.item }}"></td>
+              <td>
+                <select name="fonte_{{ i }}" class="form-control text-uppercase" style="width: 105px;">
+                  <option value="">---</option>
+                  <option value="Checklist" {% if l.fonte.upper() == 'CHECKLIST' %}selected{% endif %}>Checklist</option>
+                  <option value="Visual" {% if l.fonte.upper() == 'VISUAL' %}selected{% endif %}>Visual</option>
+                  <option value="Motorista" {% if l.fonte.upper() == 'MOTORISTA' %}selected{% endif %}>Motorista</option>
+                  <option value="Outro" {% if l.fonte.upper() == 'OUTRO' %}selected{% endif %}>Outro</option>
+                </select>
+              </td>
+              <td>
+                <select name="tipo_manutencao_{{ i }}" class="form-control text-uppercase" style="width: 120px;">
+                  <option value="">---</option>
+                  <option value="Corretiva" {% if l.tipo_manutencao.upper() == 'CORRETIVA' %}selected{% endif %}>Corretiva</option>
+                  <option value="Preventiva" {% if l.tipo_manutencao.upper() == 'PREVENTIVA' %}selected{% endif %}>Preventiva</option>
+                </select>
+              </td>
+              <td>
+                <select name="status_{{ i }}" class="form-control text-uppercase" style="width: 140px;">
+                  <option value="">---</option>
+                  <option value="PENDENTE" {% if l.status.upper() == 'PENDENTE' %}selected{% endif %}>PENDENTE</option>
+                  <option value="EM ANDAMENTO" {% if l.status.upper() == 'EM ANDAMENTO' %}selected{% endif %}>EM ANDAMENTO</option>
+                  <option value="CONCLUÍDO" {% if l.status.upper() == 'CONCLUÍDO' %}selected{% endif %}>CONCLUÍDO</option>
+                </select>
+              </td>
+              <td><input name="ordem_servico_{{ i }}" class="form-control" type="text"
+                        style="text-transform: uppercase; width: 100px;"
+                        oninput="this.value = this.value.toUpperCase()"
+                        value="{{ l.ordem_servico }}"></td>
+              <td><input name="conclusao_{{ i }}" class="form-control" type="text"
+                        style="text-transform: uppercase; width: 115px;"
+                        oninput="this.value = this.value.toUpperCase()"
+                        value="{{ l.conclusao }}"></td>
+              <td><input name="data_servico_{{ i }}" class="form-control" type="date"
+                        value="{{ l.data_servico }}"></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      for (let i = 1; i <= 100; i++) {
+        const dataInput = document.querySelector(`input[name='data_registro_${i}']`);
+        const mesInput = document.querySelector(`input[name='mes_${i}']`);
+
+        if (dataInput && mesInput) {
+          dataInput.addEventListener("change", () => {
+            const data = new Date(dataInput.value);
+            if (!isNaN(data)) {
+              const nomeMes = data.toLocaleString("pt-BR", { month: "long" }).toUpperCase();
+              mesInput.value = nomeMes;
+            }
+          });
+        }
+      }
+    });
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <div class="rodape text-center mt-4 mb-3 text-muted">
+    Desenvolvido por 64Bits Informática &copy; {{ ano if ano else "2025" }}
+  </div>
+</body>
+</html>

@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% block titulo %}Cadastro de Pneu Aplicado{% endblock %}
+
+{% block conteudo %}
+<style>
+  .tabela-pneus tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+  }
+  .tabela-pneus tbody tr:hover {
+    background-color: #dbeafe;
+  }
+  .tabela-pneus td, .tabela-pneus th {
+    padding: 8px;
+    border: 1px solid #dee2e6;
+  }
+  .tabela-pneus th {
+    background-color: #343a40;
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+</style>
+
+<!-- Filtros de busca -->
+<form method="GET" class="mb-3">
+  <div class="row g-2">
+    <div class="col-md-3">
+      <input type="text" name="placa" class="form-control" placeholder="🔍 Buscar por placa" value="{{ request.args.get('placa', '') }}">
+    </div>
+    <div class="col-md-3">
+      <input type="text" name="numero_fogo" class="form-control" placeholder="🔥 Buscar por número de fogo" value="{{ request.args.get('numero_fogo', '') }}">
+    </div>
+    <div class="col-md-3">
+      <select name="unidade" class="form-control">
+        <option value="">🏢 Filtrar por unidade</option>
+        {% for u in ['SMART', 'SPOT PE', 'SPOT RN', 'BAGAM', 'BACRO'] %}
+          <option value="{{ u }}" {% if request.args.get('unidade') == u %}selected{% endif %}>{{ u }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 text-end">
+      <button type="submit" class="btn btn-primary w-100">🔎 Filtrar</button>
+    </div>
+  </div>
+</form>
+<br>
+
+<form method="GET" action="/pneus/pdf" class="mb-3">
+  <input type="hidden" name="placa" value="{{ request.args.get('placa', '') }}">
+  <input type="hidden" name="numero_fogo" value="{{ request.args.get('numero_fogo', '') }}">
+  <input type="hidden" name="unidade" value="{{ request.args.get('unidade', '') }}">
+  <button type="submit" class="btn btn-danger">📄 Salvar em PDF</button>
+</form>
+
+<div class="container-flex" style="display: flex; gap: 40px; align-items: flex-start;">
+  <!-- Tabela de pneus cadastrados -->
+  <div style="flex: 1;">
+    <h2 class="mb-3">🧾 Pneus Cadastrados</h2>
+    <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+      <table class="table tabela-pneus table-sm text-center align-middle">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Placa</th>
+            <th>Referência</th>
+            <th>DOT</th>
+            <th>Fogo</th>
+            <th>Qtd</th>
+            <th>Data</th>
+            <th>Unidade</th>
+            <th>Salvar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in range(15) %}
+            {% if i < pneus|length %}
+              <form method="POST" action="/pneus/editar_placa">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="id" value="{{ pneus[i].id }}">
+                <tr>
+                  <td>{{ i + 1 }}</td>
+                  <td><input type="text" name="placa" value="{{ pneus[i].placa }}" class="form-control form-control-sm text-uppercase" style="width: 100px;"></td>
+                  <td>{{ pneus[i].referencia }}</td>
+                  <td>{{ pneus[i].dot }}</td>
+                  <td>{{ pneus[i].numero_fogo }}</td>
+                  <td>{{ pneus[i].quantidade }}</td>
+                  <td>{{ pneus[i].data_aplicacao.strftime('%d/%m/%Y') }}</td>
+                  <td>
+                    <select name="unidade" class="form-select form-select-sm text-uppercase" style="width: 120px;">
+                      {% for u in ['SMART', 'SPOT PE', 'SPOT RN', 'BAGAM', 'BACRO'] %}
+                        <option value="{{ u }}" {% if pneus[i].unidade == u %}selected{% endif %}>{{ u }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td><button type="submit" class="btn btn-sm btn-outline-primary">💾</button></td>
+                </tr>
+              </form>
+            {% else %}
+              <tr><td>{{ i + 1 }}</td><td colspan="8">&nbsp;</td></tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Formulário de cadastro -->
+  <div style="flex: 1;">
+    <h2>Cadastro de Pneu</h2>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flash-messages">
+          {% for category, message in messages %}
+            <li class="flash {{ category }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" class="formulario" autocomplete="off">
+      {{ form.csrf_token }}
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label>{{ form.placa.label }}</label>
+          {{ form.placa(class="form-control", id="placa") }}
+        </div>
+        <div class="col-md-6">
+          <label>{{ form.referencia.label }}</label>
+          {{ form.referencia(class="form-control", id="referencia") }}
+        </div>
+        <div class="col-md-6">
+          <label>{{ form.dot.label }}</label>
+          {{ form.dot(class="form-control", id="dot") }}
+        </div>
+        <div class="col-md-6">
+          <label>{{ form.numero_fogo.label }}</label>
+          {{ form.numero_fogo(class="form-control", id="numero_fogo") }}
+        </div>
+        <div class="col-md-6">
+          <label>{{ form.quantidade.label }}</label>
+          {{ form.quantidade(class="form-control", id="quantidade") }}
+        </div>
+        <div class="col-md-6">
+          <label>{{ form.data_aplicacao.label }}</label>
+          {{ form.data_aplicacao(class="form-control") }}
+        </div>
+        <div class="col-md-6">
+          <label>{{ form.unidade.label }}</label>
+          {{ form.unidade(class="form-control") }}
+        </div>
+        <div class="col-md-6">
+          <label>{{ form.observacoes.label }}</label>
+          {{ form.observacoes(class="form-control") }}
+        </div>
+        <div class="col-12">
+          <label>{{ form.extra.label }}</label>
+          {{ form.extra(class="form-control") }}
+        </div>
+      </div>
+      <div class="form-group mt-3 text-end">
+        <button type="submit" class="btn btn-success">💾 Cadastrar Pneu</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const inputFogo = document.getElementById("numero_fogo");
+  inputFogo.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const numeroFogo = inputFogo.value.trim().toUpperCase();
+      if (!numeroFogo) return;
+
+      fetch(`/pneus/detalhes?numero_fogo=${numeroFogo}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log("🔎 Retorno da API:", data); // 👈 debug no console
+
+          // Preenche campos se modelo e dot estiverem presentes
+          if (data.referencia || data.dot) {
+            document.getElementById("referencia").value = data.referencia || "";
+            document.getElementById("dot").value = data.dot || "";
+            document.getElementById("quantidade").value = data.quantidade || 1;
+
+            const alerta = document.createElement("div");
+            alerta.textContent = `📦 Dados do estoque encontrados para ${numeroFogo}`;
+            alerta.className = "mensagem info";
+            document.querySelector(".formulario").prepend(alerta);
+            setTimeout(() => alerta.remove(), 4000);
+          }
+        });
+    }
+  });
+});
+</script>
+
+
+{% endblock %}

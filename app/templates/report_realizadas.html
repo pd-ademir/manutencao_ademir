@@ -1,0 +1,28 @@
+{% extends 'pdf_base_report.html' %}
+
+{% block report_content %}
+<table>
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Placa</th>
+            <th>Motorista</th>
+            <th>Tipo de Manutenção</th>
+            <th class="text-right">KM no Registro</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for m in data %}
+            <tr>
+                <td>{{ m.data_troca.strftime('%d/%m/%Y') if m.data_troca else 'N/A' }}</td>
+                <td>{{ m.placa }}</td>
+                <td>{{ m.motorista or 'N/A' }}</td>
+                <td>{{ m.tipo }}</td>
+                <td class="text-right">{{ m.km_atual if m.km_atual else 'N/A' }}</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="5" class="text-center">Nenhuma manutenção registrada no período.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends 'pdf_base_report.html' %}
+
+{% block report_content %}
+<table>
+    <thead>
+        <tr>
+            <th>Placa</th>
+            <th>Unidade</th>
+            <th>Motorista</th>
+            <th>Motivo do Bloqueio</th>
+            <th class="text-right">KM do Bloqueio</th>
+            <th>Data do Bloqueio</th>
+        </tr>
+    </thead>
+    <tbody>
+        {# O loop agora é sobre uma lista de objetos 'bloqueio' #}
+        {% for bloqueio in data %}
+            <tr>
+                {# Acessamos os dados do veículo através da relação: bloqueio.veiculo #}
+                <td>{{ bloqueio.veiculo.placa }}</td>
+                <td>{{ bloqueio.veiculo.unidade }}</td>
+                <td>{{ bloqueio.veiculo.motorista or 'N/A' }}</td>
+                
+                {# Acessamos os dados do próprio registro de bloqueio #}
+                <td>{{ bloqueio.tipo_manutencao }}</td>
+                <td class="text-right">{{ bloqueio.km_bloqueio }} km</td>
+                <td>{{ bloqueio.data_bloqueio.strftime('%d/%m/%Y') }}</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="text-center">Nenhum veículo bloqueado no momento.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

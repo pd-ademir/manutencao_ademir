@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block titulo %}Teste de Extração de PDF{% endblock %}
+
+{% block conteudo %}
+<div class="container">
+    <h1>Teste de Extração de Dados da Ordem de Serviço</h1>
+    <p>Faça o upload de um PDF para testar a extração de dados.</p>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-3">
+                    <label for="pdf_file" class="form-label">Selecione o arquivo PDF:</label>
+                    <input type="file" class="form-control" id="pdf_file" name="pdf_file" accept=".pdf" required>
+                </div>
+                <button type="submit" class="btn btn-primary">🔍 Testar Extração</button>
+            </form>
+        </div>
+    </div>
+
+    {% if extracted_data %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h3>Dados Extraídos (Saída de Teste)</h3>
+        </div>
+        <div class="card-body">
+            <p><strong>Placa:</strong> <code>{{ extracted_data.placa }}</code></p>
+            <p><strong>Data do Serviço:</strong> <code>{{ extracted_data.data }}</code></p>
+            <p><strong>KM da Manutenção:</strong> <code>{{ extracted_data.km }}</code></p>
+            <p><strong>Tipo de Manutenção:</strong> <code>{{ extracted_data.tipo_servico }}</code></p>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

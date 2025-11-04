@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block titulo %}Manutenção{% endblock %}</title>
+  
+  <!-- Dependências de CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+  
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="pagina-base">
+
+  {% if current_user.is_authenticated %}
+  <!-- MENU SUPERIOR -->
+  <header class="navbar">
+    <div class="navbar-logo">
+      <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo">
+      <span class="sistema-titulo">B64.Manutenção 🛠️🚚</span>
+    </div>
+    <nav class="navbar-menu">
+      <ul>
+        <li><a href="{{ url_for('main.index') }}">🏠 Início</a></li>
+        <li><a href="{{ url_for('main.plano_manutencao') }}">🗓️ Plano de Manutenção</a></li>
+
+        {# --- ALTERAÇÃO: Usando a função tem_permissao para dar acesso ao adm --- #}
+        {% if tem_permissao('adm') %}
+          <li><a href="{{ url_for('main.gerenciar_usuarios') }}">👥 Usuários</a></li>
+          <li><a href="{{ url_for('main.exibir_logs') }}">📜 Logs</a></li>
+          {% endif %}
+          {% if tem_permissao('adm') %}
+          
+          {# A rota 'relatorios' precisa ser criada se não existir #}
+          {# <li><a href="{{ url_for('main.relatorios') }}">📊 Relatórios</a></li> #}
+          <li><a href="{{ url_for('main.kpis') }}">📈 KPIs</a></li>
+        {% endif %}
+
+        <!-- UNIDADES -->
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" onclick="toggleDropdown('unidades-menu'); return false;">🏢 Unidades ▾</a>
+          <ul class="dropdown-menu" id="unidades-menu">
+            <li><a href="{{ url_for('main.lista_placas') }}">Todas as Placas</a></li>
+            {# Adicione outras unidades conforme necessário #}
+          </ul>
+        </li>
+
+        <!-- AÇÕES -->
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" onclick="toggleDropdown('acoes-menu'); return false;">⚙️ Ações ▾</a>
+          <ul class="dropdown-menu" id="acoes-menu">
+            <li><a href="{{ url_for('main.realizar_manutencao') }}">➕ Nova Manutenção</a></li>
+            {# --- ALTERAÇÃO: Usando a função tem_permissao para dar acesso ao adm --- #}
+            {% if tem_permissao('master,comum,adm') %}
+            <li><a href="{{ url_for('veiculos.gerenciar_veiculos') }}">📋 Gerenciar Conjuntos/Placas</a></li>
+            <li><a href="{{ url_for('motoristas.gerenciar_motoristas') }}">👤 Gerenciar Motoristas</a></li>
+            {% endif %}
+            {% if tem_permissao('adm') %}
+            <li><a href="{{ url_for('mass_update.index') }}">📤 Cadastros em Massa</a></li>
+            {% endif %}
+          </ul>
+        </li>
+
+        <!-- PNEUS -->
+        {% if tem_permissao('master,adm') %}
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" onclick="toggleDropdown('pneus-menu'); return false;">🛞 Pneus ▾</a>
+          <ul class="dropdown-menu" id="pneus-menu">
+             {# As rotas de pneus precisam ser criadas se não existirem #}
+            {# <li><a href="{{ url_for('main.cadastrar_estoque') }}">➕ Cadastrar Pneu</a></li> #}
+            {# <li><a href="{{ url_for('main.mostrar_pneus') }}">📤 Aplicar Pneu</a></li> #}
+            {# <li><a href="{{ url_for('main.visualizar_estoque') }}">📦 Visualizar Estoque</a></li> #}
+          </ul>
+        </li>
+        {% endif %}
+
+        <!-- SAIR -->
+        <li style="margin-left:auto;"><a href="{{ url_for('main.logout') }}">🚪 Sair</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="boas-vindas">
+    👋 Bem-vindo, <strong>{{ current_user.nome }}</strong>! Que bom ter você de volta.
+  </div>
+  {% endif %}
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="conteudo">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for categoria, msg in messages %}
+        <div class="alert alert-{{ 'success' if categoria == 'success' else 'danger' }} mt-2">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block conteudo %}{% endblock %}
+  </main>
+
+  <footer class="rodape">
+    Desenvolvido por 64Bits Informática &copy; {{ ano }}
+
+
+  </footer>
+
+  <script>
+    // Script para controlar os menus dropdown
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
+    });
+    function toggleDropdown(id) {
+      const menu = document.getElementById(id);
+      const isOpen = menu.classList.contains('open');
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
+      if (!isOpen) menu.classList.add('open');
+    }
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.dropdown')) {
+        document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
+      }
+    });
+  </script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

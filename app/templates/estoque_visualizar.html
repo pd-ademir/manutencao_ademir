@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Estoque de Pneus{% endblock %}
+
+{% block conteudo %}
+<style>
+  .tabela-estoque tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+  }
+
+  .tabela-estoque tbody tr:hover {
+    background-color: #dbeafe;
+  }
+
+  .tabela-estoque td, .tabela-estoque th {
+    padding: 8px;
+    border: 1px solid #dee2e6;
+  }
+
+  .tabela-estoque th {
+    background-color: #343a40;
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .painel-estoque {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .painel-tabela {
+    flex: 2;
+    min-width: 500px;
+  }
+
+  .painel-graficos {
+    flex: 1;
+    min-width: 300px;
+  }
+
+  .card-grafico {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+
+  .card-grafico h5 {
+    font-size: 16px;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+</style>
+
+<h1>📦 Estoque de Pneus</h1>
+
+<!-- Filtros -->
+<form method="GET" class="mb-3">
+  <div class="row g-2">
+    <div class="col-md-3">
+      <input type="text" name="numero_fogo" class="form-control" placeholder="🔍 Número de Fogo" value="{{ request.args.get('numero_fogo', '') }}">
+    </div>
+    <div class="col-md-3">
+      <input type="text" name="modelo" class="form-control" placeholder="🚚 Modelo" value="{{ request.args.get('modelo', '') }}">
+    </div>
+    <div class="col-md-3">
+      <select name="desenho" class="form-control">
+        <option value="">🛞 Desenho</option>
+        {% for d in ['LISO', 'BORRACHUDO'] %}
+          <option value="{{ d }}" {% if request.args.get('desenho') == d %}selected{% endif %}>{{ d }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 text-end">
+      <button type="submit" class="btn btn-primary w-100">🔎 Filtrar</button>
+    </div>
+  </div>
+</form>
+
+<form method="GET" action="/estoque/pdf" class="mb-3">
+  <input type="hidden" name="numero_fogo" value="{{ request.args.get('numero_fogo', '') }}">
+  <input type="hidden" name="modelo" value="{{ request.args.get('modelo', '') }}">
+  <input type="hidden" name="desenho" value="{{ request.args.get('desenho', '') }}">
+  <button type="submit" class="btn btn-danger">📄 Salvar em PDF</button>
+</form>
+
+<!-- Painel com tabela e gráficos lado a lado -->
+<div class="painel-estoque">
+  <!-- Tabela -->
+  <div class="painel-tabela">
+    <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+      <table class="table tabela-estoque table-sm text-center align-middle">
+        <thead>
+          <tr>
+            <th style="width: 40px;">#</th>
+            <th style="width: 120px;">Nº Fogo</th>
+            <th style="width: 60px;">Vida</th>
+            <th style="width: 120px;">Modelo</th>
+            <th style="width: 100px;">Desenho</th>
+            <th style="width: 80px;">DOT</th>
+            <th style="width: 110px;">Entrada</th>
+            <th style="width: 200px;">Observações</th>
+          </tr>
+        </thead>
+      <tbody>
+        {% for pneu in pneus %}
+        <tr>
+          <td>{{ loop.index }}</td> <!-- substitui o 'i' do enumerate -->
+          <td>{{ pneu.numero_fogo }}</td>
+          <td>{{ pneu.vida }}</td>
+          <td>{{ pneu.modelo }}</td>
+          <td>{{ pneu.desenho }}</td>
+          <td>{{ pneu.dot }}</td>
+          <td>{{ pneu.data_entrada.strftime('%d/%m/%Y') }}</td>
+          <td>{{ pneu.observacoes }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Gráficos -->
+  <div class="painel-graficos">
+    <div class="card-grafico">
+      <h5>Estoque vs Aplicados</h5>
+      <canvas id="graficoBarra" height="150"></canvas>
+    </div>
+    <div class="card-grafico">
+      <h5>Distribuição por Desenho</h5>
+      <canvas id="graficoPizza" height="150"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const barraCtx = document.getElementById('graficoBarra').getContext('2d');
+  new Chart(barraCtx, {
+    type: 'bar',
+    data: {
+      labels: ['Em Estoque', 'Aplicados'],
+      datasets: [{
+        label: 'Quantidade',
+        data: [{{ total_estoque }}, {{ total_aplicados }}],
+        backgroundColor: ['#60a5fa', '#f87171'],
+        borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: { beginAtZero: true }
+      }
+    }
+  });
+
+  const pizzaCtx = document.getElementById('graficoPizza').getContext('2d');
+  new Chart(pizzaCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['LISO', 'BORRACHUDO'],
+      datasets: [{
+        data: [{{ liso }}, {{ borrachudo }}],
+        backgroundColor: ['#34d399', '#fbbf24'],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { boxWidth: 12 }
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}

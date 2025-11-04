@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login - Manutenção</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="pagina-login">
+  <div class="login-container">
+    <h2>Gestão de Manutenção</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for categoria, msg in messages %}
+          <div class="mensagem {{ categoria }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="loader-container" id="loader">
+      <div class="gotinha"></div>
+    </div>
+
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <label for="usuario">Usuário</label>
+      <input type="text" id="usuario" name="usuario" required />
+
+      <label for="senha">Senha</label>
+      <input type="password" id="senha" name="senha" required />
+
+      <button type="submit">Entrar</button>
+    </form>
+
+
+  <script>
+    const form = document.querySelector('form');
+    const loader = document.getElementById('loader');
+    form.addEventListener('submit', () => {
+      loader.style.display = 'flex';
+    });
+  </script>
+</body>
+</html>

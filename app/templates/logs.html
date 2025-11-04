@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Logs do Sistema{% endblock %}
+
+{% block conteudo %}
+<h2>Últimas Ações Realizadas</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for categoria, msg in messages %}
+      <div class="mensagem {{ categoria }}">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<table border="1" cellpadding="8" cellspacing="0" style="width: 100%; margin-top: 20px; border-collapse: collapse;">
+  <thead style="background-color: #f0f0f0;">
+    <tr>
+      <th>Data</th>
+      <th>Usuário</th>
+      <th>Ação</th>
+      <th>IP</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if logs %}
+      {% for log in logs %}
+      <tr>
+        <td>{{ log.data.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+        <td>{{ log.usuario.nome }}</td>
+        <td>{{ log.acao }}</td>
+        <td>{{ log.ip }}</td>
+      </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="4"><em>Nenhuma ação registrada até o momento.</em></td>
+      </tr>
+    {% endif %}
+  </tbody>
+</table>
+{% endblock %}

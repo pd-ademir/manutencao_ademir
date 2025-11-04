@@ -1,0 +1,8 @@
+.motorista-inativo td {
+    background-color: #f8f9fa !important;
+    text-decoration: line-through;
+    color: #6c757d;
+}
+.motorista-inativo .badge, .motorista-inativo .btn {
+    text-decoration: none !important;
+}

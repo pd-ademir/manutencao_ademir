@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/kpis.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+{% endblock %}
+
+{% block conteudo %}
+<div class="container-fluid mt-4">
+
+    <!-- CABEÇALHO E FILTRO -->
+    <div class="kpi-header">
+        <h1>Dashboard <span class="text-primary">({{ unidade_selecionada or 'Geral' }})</span></h1>
+        <form method="GET" action="{{ url_for('main.kpis') }}" class="d-flex align-items-center">
+            <label for="unidade" class="form-label me-2 mb-0 fw-bold">Operação:</label>
+            <select name="unidade" id="unidade" class="form-select w-auto" onchange="this.form.submit()">
+                <option value="">Geral</option>
+                {% for unidade in unidades %}
+                    <option value="{{ unidade }}" {% if unidade == unidade_selecionada %}selected{% endif %}>{{ unidade }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    <!-- CARTÕES DE KPI -->
+    <div class="grid-container">
+        <div class="kpi-card ok">
+            <i class="fas fa-check-circle icon"></i>
+            <div class="text-content">
+                <div class="number">{{ veiculos_ok }}</div>
+                <div class="label">Veículos OK</div>
+            </div>
+        </div>
+        <div class="kpi-card radar">
+            <i class="fas fa-broadcast-tower icon"></i>
+            <div class="text-content">
+                <div class="number">{{ veiculos_radar }}</div>
+                <div class="label">Em Radar</div>
+            </div>
+        </div>
+        <div class="kpi-card vencido">
+            <i class="fas fa-exclamation-triangle icon"></i>
+            <div class="text-content">
+                <div class="number">{{ veiculos_vencidos }}</div>
+                <div class="label">Vencidos</div>
+            </div>
+        </div>
+        <div class="kpi-card info">
+            <i class="fas fa-truck icon"></i>
+            <div class="text-content">
+                <div class="number">{{ frota_disponivel }}</div>
+                <div class="label">Frota Disponível</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

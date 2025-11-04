@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Cadastro de Pneus no Estoque{% endblock %}
+
+{% block conteudo %}
+
+  <h1>Cadastro de Pneu no Estoque</h1>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flash-messages">
+        {% for category, message in messages %}
+          <li class="flash {{ category }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST" class="formulario" autocomplete="off">
+    {{ form.csrf_token }}
+
+    <div class="form-group">{{ form.numero_fogo.label }}<br>{{ form.numero_fogo(class="form-control") }}</div>
+    <div class="form-group">{{ form.vida.label }}<br>{{ form.vida(class="form-control") }}</div>
+    <div class="form-group">{{ form.modelo.label }}<br>{{ form.modelo(class="form-control") }}</div>
+    <div class="form-group">{{ form.desenho.label }}<br>{{ form.desenho(class="form-control") }}</div>
+    <div class="form-group">{{ form.dot.label }}<br>{{ form.dot(class="form-control") }}</div>
+    <div class="form-group">{{ form.data_entrada.label }}<br>{{ form.data_entrada(class="form-control") }}</div>
+    <div class="form-group">{{ form.observacoes.label }}<br>{{ form.observacoes(class="form-control") }}</div>
+
+    <div class="form-group">
+      <button type="submit" class="btn-cadastrar">Cadastrar Pneu</button>
+    </div>
+  </form>
+
+{% endblock %}

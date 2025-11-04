@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% block titulo %}Painel de Manutenção{% endblock %}
+
+{% block conteudo %}
+<h1>Painel de Manutenção</h1>
+
+<input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
+<form method="get" action="{{ url_for('main.index') }}">
+  {% if request.args.get('filtro') == 'ocultar_somente_calibragem' %}
+    <button class="btn btn-secondary" style="margin-bottom: 15px;">
+      🔄 Mostrar todos os veículos
+    </button>
+  {% else %}
+    <input type="hidden" name="filtro" value="ocultar_somente_calibragem">
+    <button class="btn btn-secondary" style="margin-bottom: 15px;">
+      🚫 Ocultar veículos com apenas calibragem vencida
+    </button>
+  {% endif %}
+</form>
+
+{% if current_user.is_authenticated and current_user.tipo.upper() == 'MASTER' %}
+  <form action="{{ url_for('main.teste_alerta') }}" method="get">
+    <button class="btn btn-danger" style="margin-bottom: 15px; background: #28a745">
+      🔔 Disparar Alertas de Manutenção
+    </button>
+  </form>
+{% endif %}
+
+<p>Confira abaixo os veículos com revisões próximas do vencimento.</p>
+
+<div class="tabela-scroll">
+  <table class="tabela-index">
+    <thead>
+      <tr>
+        <th>Conjunto</th>
+        <th>Motorista</th>
+        <th>Modelo</th>
+        <th>KM Atual</th>
+        <th>Próx. Preventiva</th>
+        <th>Próx. Intermediária</th>
+        <th>Próx. Diferencial</th>
+        <th>Próx. Câmbio</th>
+        <th>Próx. Calibragem</th>
+        <th>Unidade</th>
+        <th>Ação</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for veiculo in veiculos %}
+        {% set cavalo = veiculo.placa_cavalo %}
+        <tr data-placa="{{ cavalo.placa }}" class="{% if cavalo.em_manutencao %}linha-manutencao{% endif %}">
+            <td>
+                {% if veiculo.placa_carreta1 and veiculo.placa_carreta1.data_proxima_revisao_carreta %}{% set dias_para_revisao = (veiculo.placa_carreta1.data_proxima_revisao_carreta - current_date).days %}{% if dias_para_revisao < 0 %}<span class="badge bg-danger" title="Revisão carreta atrasada em {{ -dias_para_revisao }} dias">🔴</span>{% elif dias_para_revisao <= 30 %}<span class="badge bg-warning text-dark" title="Revisão carreta em {{ dias_para_revisao }} dias">🟡</span>{% endif %}{% endif %}
+                <a href="{{ url_for('checklist.por_placa', placa=cavalo.placa) }}" class="link-primary text-decoration-none" title="Ver checklist do cavalo">{{ veiculo.nome_conjunto }}</a>
+            </td>
+            <td>{{ veiculo.motorista.nome if veiculo.motorista else '-' }}</td>
+            <td>{{ cavalo.modelo }}</td>
+            <td title="Atualizado em: {{ cavalo.data_ultima_atualizacao_km.strftime('%d/%m/%Y %H:%M') if cavalo.data_ultima_atualizacao_km else 'Sem registro' }}">{{ cavalo.km_atual | format_km }}</td>
+            <td class="{% if cavalo.km_para_preventiva is not none and cavalo.km_para_preventiva <= 5000 %}alerta{% endif %}">{{ cavalo.km_para_preventiva | format_km if cavalo.km_para_preventiva is not none else '-' }}</td>
+            <td class="{% if cavalo.km_para_intermediaria is not none and cavalo.km_para_intermediaria <= 5000 %}alerta{% endif %}">{{ cavalo.km_para_intermediaria | format_km if cavalo.km_para_intermediaria is not none else '-' }}</td>
+            <td class="{% if cavalo.km_para_diferencial is not none and cavalo.km_para_diferencial <= 5000 %}alerta{% endif %}">{{ cavalo.km_para_diferencial | format_km if cavalo.km_para_diferencial is not none else '-' }}</td>
+            <td class="{% if cavalo.km_para_cambio is not none and cavalo.km_para_cambio <= 5000 %}alerta{% endif %}">{{ cavalo.km_para_cambio | format_km if cavalo.km_para_cambio is not none else '-' }}</td>
+            <td class="{% if cavalo.data_proxima_calibragem and cavalo.data_proxima_calibragem <= current_date %}alerta{% endif %}">{{ cavalo.data_proxima_calibragem.strftime('%d/%m/%Y') if cavalo.data_proxima_calibragem else '-' }}</td>
+            <td>{{ cavalo.unidade }}</td>
+            <td>
+                {% if current_user.tipo.upper() == 'MASTER' %}<button class="btn btn-warning btn-sm" onclick="alternarManutencao('{{ cavalo.placa }}')">⚙️ Em Manutenção</button>{% endif %}
+                <button onclick="window.location.href='{{ url_for('main.realizar_manutencao', placa_pre_selecionada=cavalo.placa) }}'" class="btn btn-info btn-sm" style="margin-left: 5px;">+ Nova Manutenção</button>
+            </td>
+        </tr>
+
+        <!-- Bloco de Alerta de Agendamento -->
+        {% set manutencoes_proximas = [] %}
+        {% if cavalo.km_para_preventiva is not none and 0 < cavalo.km_para_preventiva <= 1000 %}{% set _ = manutencoes_proximas.append(1) %}{% endif %}
+        {% if cavalo.km_para_intermediaria is not none and 0 < cavalo.km_para_intermediaria <= 1000 %}{% set _ = manutencoes_proximas.append(1) %}{% endif %}
+        {% if cavalo.km_para_diferencial is not none and 0 < cavalo.km_para_diferencial <= 1000 %}{% set _ = manutencoes_proximas.append(1) %}{% endif %}
+        {% if cavalo.km_para_cambio is not none and 0 < cavalo.km_para_cambio <= 1000 %}{% set _ = manutencoes_proximas.append(1) %}{% endif %}
+
+        {% if manutencoes_proximas %}
+            <tr class="linha-alerta-agendamento" id="alerta-agendamento-{{ cavalo.placa }}">
+                <td colspan="11">
+                    <div class="card-alerta-agendamento">
+                        <div class="card-texto" style="font-family: monospace; line-height: 1.6;">
+                            <strong>- SEGUE PLACAS QUE PRECISAM FAZER MANUTENÇÃO.</strong><br><br>
+                            {% set motorista_nome = veiculo.motorista.nome if veiculo.motorista else 'N/A' %}
+                            {% if cavalo.km_para_preventiva is not none and 0 < cavalo.km_para_preventiva <= 1000 %}<strong>{{ cavalo.unidade }} - MOTORISTA, {{ motorista_nome }} – {{ veiculo.nome_conjunto }} – FALTA {{ cavalo.km_para_preventiva | format_km }} PARA A PREVENTIVA</strong><br>{% endif %}
+                            {% if cavalo.km_para_intermediaria is not none and 0 < cavalo.km_para_intermediaria <= 1000 %}<strong>{{ cavalo.unidade }} - MOTORISTA, {{ motorista_nome }} – {{ veiculo.nome_conjunto }} – FALTA {{ cavalo.km_para_intermediaria | format_km }} PARA A INTERMEDIÁRIA</strong><br>{% endif %}
+                            {% if cavalo.km_para_diferencial is not none and 0 < cavalo.km_para_diferencial <= 1000 %}<strong>{{ cavalo.unidade }} - MOTORISTA, {{ motorista_nome }} – {{ veiculo.nome_conjunto }} – FALTA {{ cavalo.km_para_diferencial | format_km }} PARA O DIFERENCIAL</strong><br>{% endif %}
+                            {% if cavalo.km_para_cambio is not none and 0 < cavalo.km_para_cambio <= 1000 %}<strong>{{ cavalo.unidade }} - MOTORISTA, {{ motorista_nome }} – {{ veiculo.nome_conjunto }} – FALTA {{ cavalo.km_para_cambio | format_km }} PARA O CÂMBIO</strong><br>{% endif %}
+                        </div>
+                        <div class="card-botoes">
+                            <a href="https://mail.google.com/" target="_blank" rel="noopener noreferrer" class="btn-email">📧 Abrir Gmail</a>
+                            <button onclick="ocultarAlertaAgendamento('{{ cavalo.placa }}')" class="btn-ocultar">✕ Ocultar Alerta</button>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        {% endif %}
+
+        {% if veiculo.manutencoes_vencidas %}<tr class="linha-bloqueio"><td colspan="11"><div class="alerta-bloqueio">🚫 <strong>VEÍCULO BLOQUEADO</strong>: Manutenção vencida — {{ veiculo.manutencoes_vencidas | join(', ') }}.<br>Este veículo <strong>não deve entrar em operação</strong> até que a manutenção seja realizada.</div></td></tr>{% endif %}
+        {% if cavalo.em_manutencao %}<tr><td colspan="11" style="position: relative;"><div class="texto-corrente"><img src="/static/guincho.png" alt="Guincho" class="guincho-frontal"><img src="/static/carro-sem-fundo.png" alt="Carro em manutenção" class="guincho-frontal"><span>🚧 VEÍCULO EM MANUTENÇÃO</span></div></td></tr>{% endif %}
+      {% else %}
+        <tr><td colspan="11">Nenhum veículo com manutenção próxima.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+// ==================================================================
+// == FUNÇÃO DE MANUTENÇÃO ==
+// ==================================================================
+function alternarManutencao(placa) {
+    const token = document.getElementById("csrf_token").value;
+    fetch(`/manutencao/${placa}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': token
+        },
+        body: JSON.stringify({})
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            location.reload();
+        }
+    });
+}
+
+// ==================================================================
+// == FUNÇÕES DE ALERTA DE AGENDAMENTO ==
+// ==================================================================
+document.addEventListener("DOMContentLoaded", function() {
+    const alertas = document.querySelectorAll('.linha-alerta-agendamento');
+    alertas.forEach(alerta => {
+        const placa = alerta.id.replace('alerta-agendamento-', '');
+        if (localStorage.getItem('alerta_agendamento_oculto_' + placa)) {
+            alerta.style.display = 'none';
+        }
+    });
+});
+function ocultarAlertaAgendamento(placa) {
+    localStorage.setItem('alerta_agendamento_oculto_' + placa, 'true');
+    const alertaParaOcultar = document.getElementById('alerta-agendamento-' + placa);
+    if (alertaParaOcultar) {
+        alertaParaOcultar.style.display = 'none';
+    }
+}
+</script>
+
+<style>
+.card-alerta-agendamento { background-color: #fff3cd; border-left: 5px solid #ffc107; color: #856404; padding: 15px; margin: 5px 0; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.card-texto { flex-grow: 1; }
+.card-botoes { display: flex; gap: 10px; align-items: center; }
+.btn-email { background-color: #007bff; color: white; padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 14px; white-space: nowrap; }
+.btn-ocultar { background: none; border: none; font-size: 20px; cursor: pointer; color: #856404; }
+.linha-bloqueio { background-color: #ff4d4d; color: white; font-weight: bold; animation: piscar 1s infinite; }
+@keyframes piscar { 0% { background-color: #ff4d4d; } 50% { background-color: #ff9999; } 100% { background-color: #ff4d4d; } }
+.alerta-bloqueio { padding: 10px; font-size: 1.1em; text-align: center; }
+</style>
+
+{% endblock %}

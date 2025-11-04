@@ -1,0 +1,46 @@
+steps:
+# Etapa 1: Construir a imagem do container
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/mindful-fuze-475317-e2/manutencao:manual-deploy', '.']
+
+# Etapa 2: Enviar a imagem para o Container Registry
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/mindful-fuze-475317-e2/manutencao:manual-deploy']
+
+# Etapa 3: Executar migrações do banco de dados (evite rodar com frequência)
+- name: 'gcr.io/mindful-fuze-475317-e2/manutencao:manual-deploy'
+  entrypoint: 'flask'
+  args: ['db', 'upgrade']
+  secretEnv: ['SECRET_KEY', 'JWT_SECRET_KEY', 'DATABASE_URI']
+
+# Etapa 4: Fazer o deploy da nova versão com recursos otimizados
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args: [
+      'run',
+      'deploy',
+      'manutencao', 
+      '--image', 'gcr.io/mindful-fuze-475317-e2/manutencao:manual-deploy',
+      '--region', 'us-central1',
+      '--platform', 'managed',
+      '--allow-unauthenticated',
+      '--min-instances=0',           # Escalonamento automático (evita cobrança fora do uso)
+      '--memory=512Mi',              # Memória reduzida (ajuste conforme necessidade real)
+      '--cpu=1',                     # CPU reduzido (ajuste conforme carga)
+      '--set-secrets=SECRET_KEY=SECRET_KEY:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,DATABASE_URI=DATABASE_URI:latest'
+    ]
+
+# Define a imagem que será criada por este build
+images:
+- 'gcr.io/mindful-fuze-475317-e2/manutencao:manual-deploy'
+
+# Configuração de Acesso ao Secret Manager
+availableSecrets:
+  secretManager:
+  - versionName: projects/mindful-fuze-475317-e2/secrets/SECRET_KEY/versions/latest
+    env: 'SECRET_KEY'
+  - versionName: projects/mindful-fuze-475317-e2/secrets/JWT_SECRET_KEY/versions/latest
+    env: 'JWT_SECRET_KEY'
+  - versionName: projects/mindful-fuze-475317-e2/secrets/DATABASE_URI/versions/latest
+    env: 'DATABASE_URI'
+

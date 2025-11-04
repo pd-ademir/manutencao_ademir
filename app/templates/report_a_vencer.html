@@ -1,0 +1,29 @@
+{% extends 'pdf_base_report.html' %}
+
+{% block report_content %}
+<table>
+    <thead>
+        <tr>
+            <th>Placa</th>
+            <th>Unidade</th>
+            <th>Motorista</th>
+            <th>Manutenções Próximas</th>
+            <th class="text-right">KM Atual</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for v in data %}
+            <tr>
+                <td>{{ v.placa }}</td>
+                <td>{{ v.unidade }}</td>
+                <td>{{ v.motorista or 'N/A' }}</td>
+                {# Usamos a propriedade temporária que foi criada na rota #}
+                <td>{{ v.manutencoes_pendentes_texto | join('<br>') | safe }}</td>
+                <td class="text-right">{{ "{:,.0f}".format(v.km_atual).replace(",", ".") }} km</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="5" class="text-center">Nenhum veículo com manutenções a vencer.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

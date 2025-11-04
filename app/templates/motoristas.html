@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Motoristas{% endblock %}
+
+{% block extra_head %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/motoristas.css') }}">
+{% endblock %}
+
+{% block header %}Gerenciamento de Motoristas{% endblock %}
+
+{% block conteudo %}
+<div class="container-fluid">
+
+    {# Card de Filtros #}
+    {% if current_user.tipo == 'adm' %}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-filter me-2"></i>Filtros</h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('motoristas.gerenciar_motoristas') }}">
+                <div class="row align-items-end g-3">
+                    <div class="col-md-4">
+                        <label for="filial_filtro" class="form-label">Filtrar por Filial</label>
+                        <select name="filial" id="filial_filtro" class="form-select">
+                            <option value="">Todas as Filiais</option>
+                            {% for f in filiais_disponiveis %}
+                            <option value="{{ f }}" {% if f == filial_selecionada %}selected{% endif %}>{{ f }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="unidade_filtro" class="form-label">Filtrar por Unidade</label>
+                        <select name="unidade" id="unidade_filtro" class="form-select">
+                           {# Populado via JS #}
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-info me-2">Aplicar</button>
+                        <a href="{{ url_for('motoristas.gerenciar_motoristas') }}" class="btn btn-secondary">Limpar</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Card para Adicionar Novo Motorista #}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Adicionar Novo Motorista</h6>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('motoristas.add_motorista') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="row mb-3">
+                    <div class="col-md-4"><label class="form-label">Nome Completo</label><input type="text" class="form-control" name="nome" required></div>
+                    <div class="col-md-4"><label class="form-label">CPF</label><input type="text" class="form-control" name="cpf" required></div>
+                    <div class="col-md-4"><label class="form-label">RG</label><input type="text" class="form-control" name="rg"></div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-3"><label class="form-label">CNH</label><input type="text" class="form-control" name="cnh"></div>
+                    <div class="col-md-3">
+                        <label class="form-label">Unidade</label>
+                        {% if current_user.tipo == 'adm' %}
+                            <input type="text" class="form-control" name="unidade" list="unidades-gerais-list" placeholder="Digite ou selecione" required>
+                        {% else %}
+                            <input type="text" class="form-control" name="unidade" value="{{ current_user.unidade }}" readonly>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Filial</label>
+                        <input type="text" class="form-control" name="filial" list="filiais-gerais-list" placeholder="Digite ou selecione">
+                    </div>
+                    <div class="col-md-3"><label class="form-label">Frota</label><input type="text" class="form-control" name="frota"></div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label class="form-label">Conjunto Vinculado</label>
+                        <select name="veiculo_id" class="form-select">
+                            <option value="">-- Nenhum --</option>
+                            {% for veiculo in veiculos_disponiveis %}
+                                <option value="{{ veiculo.id }}">{{ veiculo.nome_conjunto }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Adicionar Motorista</button>
+            </form>
+        </div>
+    </div>
+
+    {# Tabela de Motoristas #}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Motoristas Cadastrados</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead><tr><th>Nome</th><th>CPF</th><th>Unidade</th><th>Filial</th><th>Conjunto</th><th>Ações</th></tr></thead>
+                    <tbody>
+                        {% for motorista in motoristas %}
+                        <tr class="{% if not motorista.ativo %}motorista-inativo{% endif %}">
+                            <td>{{ motorista.nome }} {% if not motorista.ativo %}<span class="badge bg-secondary ms-2">Inativo</span>{% endif %}</td>
+                            <td>{{ motorista.cpf }}</td>
+                            <td>{{ motorista.unidade }}</td>
+                            <td>{{ motorista.filial or 'N/A' }}</td>
+                            <td>
+                                {% if motorista.veiculo %}
+                                    {{ motorista.veiculo.nome_conjunto }}
+                                    <button type="button" class="btn btn-outline-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#desvincularModal-{{ motorista.id }}" title="Desvincular Conjunto"><i class="fas fa-unlink"></i></button>
+                                {% else %} N/A {% endif %}
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#editModal-{{ motorista.id }}" title="Editar Motorista"><i class="fas fa-edit"></i></button>
+                                <form action="{{ url_for('motoristas.toggle_motorista_status', motorista_id=motorista.id) }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="btn btn-sm {% if motorista.ativo %}btn-warning{% else %}btn-success{% endif %}" title="{% if motorista.ativo %}Desativar{% else %}Ativar{% endif %} Motorista"><i class="fas {% if motorista.ativo %}fa-user-slash{% else %}fa-user-check{% endif %}"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# --- DATALISTS PARA MODAIS --- #}
+<datalist id="unidades-gerais-list">
+    {% for u in unidades_gerais %}<option value="{{ u }}">{% endfor %}
+</datalist>
+<datalist id="filiais-gerais-list">
+    {% for f in filiais_gerais %}<option value="{{ f }}">{% endfor %}
+</datalist>
+
+{# --- MODAIS --- #}
+{% for motorista in motoristas %}
+    {# MODAL DE EDIÇÃO #}
+    <div class="modal fade" id="editModal-{{ motorista.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form action="{{ url_for('motoristas.edit_motorista', motorista_id=motorista.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="modal-header"><h5 class="modal-title">Editar Motorista: {{ motorista.nome }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6"><label class="form-label">Nome</label><input type="text" class="form-control" name="nome" value="{{ motorista.nome }}" required></div>
+                            <div class="col-md-6"><label class="form-label">CPF</label><input type="text" class="form-control" name="cpf" value="{{ motorista.cpf }}" required></div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6"><label class="form-label">RG</label><input type="text" class="form-control" name="rg" value="{{ motorista.rg or '' }}"></div>
+                            <div class="col-md-6"><label class="form-label">CNH</label><input type="text" class="form-control" name="cnh" value="{{ motorista.cnh or '' }}"></div>
+                        </div>
+                        <div class="row mb-3">
+                             <div class="col-md-6">
+                                <label class="form-label">Unidade</label>
+                                <input type="text" class="form-control" name="unidade" value="{{ motorista.unidade }}" list="unidades-gerais-list" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Filial</label>
+                                <input type="text" class="form-control" name="filial" value="{{ motorista.filial or '' }}" list="filiais-gerais-list">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6"><label class="form-label">Frota</label><input type="text" class="form-control" name="frota" value="{{ motorista.frota or '' }}"></div>
+                            <div class="col-md-6">
+                                <label class="form-label">Conjunto Vinculado</label>
+                                <select name="veiculo_id" class="form-select">
+                                    <option value="">-- Nenhum --</option>
+                                    {% if motorista.veiculo %}<option value="{{ motorista.veiculo.id }}" selected>{{ motorista.veiculo.nome_conjunto }}</option>{% endif %}
+                                    {% for veiculo in veiculos_disponiveis %}<option value="{{ veiculo.id }}">{{ veiculo.nome_conjunto }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {# MODAL DE DESVINCULAR #}
+    {% if motorista.veiculo %}
+    <div class="modal fade" id="desvincularModal-{{ motorista.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Confirmar Desvinculação</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                <div class="modal-body"><p>Tem certeza que deseja desvincular o conjunto <strong>{{ motorista.veiculo.nome_conjunto }}</strong> do motorista <strong>{{ motorista.nome }}</strong>?</p></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <form action="{{ url_for('motoristas.desvincular_conjunto', motorista_id=motorista.id) }}" method="POST" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn btn-danger">Sim, Desvincular</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
+
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  
+  {# Dados para o JS #}
+  <script type="application/json" id="filial-unidade-map-data">{{ filial_unidade_map|tojson|safe }}</script>
+  <script type="application/json" id="todas-unidades-data">{{ todas_unidades_json|tojson|safe }}</script>
+  <script type="text/plain" id="unidade-selecionada-data">{{ unidade_selecionada }}</script>
+  <script type="text/plain" id="filial-selecionada-data">{{ filial_selecionada }}</script>
+
+  {# Script de filtro #}
+  <script src="{{ url_for('static', filename='js/motoristas_filtros.js') }}"></script>
+{% endblock %}

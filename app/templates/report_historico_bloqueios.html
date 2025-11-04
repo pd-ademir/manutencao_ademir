@@ -1,0 +1,42 @@
+{% extends 'pdf_base_report.html' %}
+
+{% block report_content %}
+<table>
+    <thead>
+        <tr>
+            <th>Placa</th>
+            <th>Motivo</th>
+            <th class="text-right">KM Bloqueio</th>
+            <th>Data Bloqueio</th>
+            <th>Liberado?</th>
+            <th>Data Liberação</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for bloqueio in data %}
+            <tr>
+                <td>{{ bloqueio.veiculo.placa }}</td>
+                <td>{{ bloqueio.tipo_manutencao }}</td>
+                <td class="text-right">{{ bloqueio.km_bloqueio }} km</td>
+                <td>{{ bloqueio.data_bloqueio.strftime('%d/%m/%Y') }}</td>
+                <td>
+                    {% if bloqueio.liberado %}
+                        <span style="color: green;">Sim</span>
+                    {% else %}
+                        <span style="color: red;">Não</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if bloqueio.data_liberacao %}
+                        {{ bloqueio.data_liberacao.strftime('%d/%m/%Y') }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="text-center">Nenhum registro de bloqueio encontrado.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

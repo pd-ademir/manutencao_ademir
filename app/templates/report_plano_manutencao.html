@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 1.5cm;
+            @frame header_frame { -pdf-frame-content: page-header; top: 1cm; left: 1.5cm; right: 1.5cm; height: 2.5cm; }
+            @frame content_frame { top: 3.5cm; left: 1.5cm; right: 1.5cm; bottom: 1.5cm; }
+            @frame footer_frame { -pdf-frame-content: page-footer; bottom: 0cm; left: 1.5cm; right: 1.5cm; height: 1cm; }
+        }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; color: #333; font-size: 8pt; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 4px; text-align: center; vertical-align: middle; }
+        th { background-color: #f2f2f2; font-weight: bold; font-size: 9pt; }
+        
+        .header-table, .footer-table { width: 100%; border: 0; }
+        .header-table td { border: 0; padding: 0; vertical-align: middle; }
+        
+        .logo { width: 120px; height: auto; display: block; }
+        .company-info { text-align: right; font-size: 8pt; }
+        
+        .footer-text { text-align: left; font-size: 8pt; }
+        .page-number { text-align: right; font-size: 8pt; }
+
+        .veiculo-info { text-align: left; font-size: 9pt; }
+        .veiculo-info small { color: #555; font-size: 7pt; }
+
+        .manut-info { line-height: 1.4; }
+        .manut-info strong { font-weight: bold; }
+        .km-restantes { font-size: 7pt; color: #666; }
+        
+        .text-danger { color: #dc3545; font-weight: bold; }
+        .text-warning { color: #ffc107; font-weight: bold; }
+        .text-muted { color: #888; }
+    </style>
+</head>
+<body>
+    <!-- Cabeçalho -->
+    <div id="page-header">
+        <table class="header-table">
+            <tr>
+                <td><img src="{{ logo_data_uri }}" class="logo"></td>
+                <td class="company-info">
+                    <strong>{{ title }}</strong><br>
+                    Filial: {{ filial or 'Todas' }} | Unidade: {{ unidade or 'Todas' }}<br>
+                    Gerado em: {{ current_date.strftime('%d/%m/%Y') }}
+                </td>
+            </tr>
+        </table>
+        <hr style="margin-top: 5px;">
+    </div>
+
+    <!-- Rodapé -->
+    <div id="page-footer">
+        <table class="footer-table">
+            <tr>
+                <td class="footer-text">Sistema de Gestão de Frotas</td>
+                <td class="page-number">Página <pdf:pagecount></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Conteúdo Principal -->
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 20%;">Veículo</th>
+                <th style="width: 16%;">Preventiva</th>
+                <th style="width: 16%;">Intermediária</th>
+                <th style="width: 16%;">Diferencial</th>
+                <th style="width: 16%;">Câmbio</th>
+                <th style="width: 16%;">Rev. Carreta</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for veiculo in veiculos %}
+            <tr>
+                <td class="veiculo-info">
+                    <strong>{{ veiculo.nome_conjunto }}</strong><br />
+                    <small>{{ veiculo.motorista }}</small>
+                </td>
+                
+                <td>
+                    {% if veiculo.preventiva %}
+                        <span class="{{ veiculo.preventiva.cor }}">
+                            Próx: <strong>{{ veiculo.preventiva.prox }}</strong><br />
+                            <span class="km-restantes">{{ veiculo.preventiva.rest }}</span>
+                        </span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if veiculo.intermediaria %}
+                        <span class="{{ veiculo.intermediaria.cor }}">
+                            Próx: <strong>{{ veiculo.intermediaria.prox }}</strong><br />
+                            <span class="km-restantes">{{ veiculo.intermediaria.rest }}</span>
+                        </span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if veiculo.diferencial %}
+                        <span class="{{ veiculo.diferencial.cor }}">
+                            Próx: <strong>{{ veiculo.diferencial.prox }}</strong><br />
+                            <span class="km-restantes">{{ veiculo.diferencial.rest }}</span>
+                        </span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if veiculo.cambio %}
+                        <span class="{{ veiculo.cambio.cor }}">
+                            Próx: <strong>{{ veiculo.cambio.prox }}</strong><br />
+                            <span class="km-restantes">{{ veiculo.cambio.rest }}</span>
+                        </span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                
+                <td>
+                    {% if veiculo.carreta %}
+                        <span class="{{ veiculo.carreta.cor }}">
+                            {{ veiculo.carreta.status }}<br />
+                            <small class="text-muted">{{ veiculo.carreta.data }}</small>
+                        </span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="padding: 20px; text-align: center;">Nenhum veículo para exibir com os filtros selecionados.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

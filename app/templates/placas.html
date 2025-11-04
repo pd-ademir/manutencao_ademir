@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Painel de Veículos por Unidade{% endblock %}
+
+{# PASSO 1: Adiciona o link para o novo arquivo CSS no cabeçalho #}
+{% block extra_head %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/placas.css') }}">
+{% endblock %}
+
+
+{% block conteudo %}
+<div class="container-fluid mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1>Painel de Veículos</h1>
+      {% if tem_permissao('editar_km') %}
+        <a href="{{ url_for('main.atualizar_km_massa') }}" class="btn btn-primary">
+            <i class="fas fa-file-upload me-2"></i>Atualizar KM em Massa
+        </a>
+      {% endif %}
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message|safe }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    {# Card de Filtros #}
+    {% if current_user.tipo == 'adm' or (current_user.tipo == 'master' and not current_user.unidade) %}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-filter me-2"></i>Filtros de Exibição</h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('main.lista_placas') }}">
+                <div class="row align-items-end g-3">
+                    {% if current_user.tipo == 'adm' %}
+                    <div class="col-md-4">
+                        <label for="filial_filtro" class="form-label">Filtrar por Filial</label>
+                        <select name="filial" id="filial_filtro" class="form-select">
+                            <option value="">Todas as Filiais</option>
+                            {% for f in filiais_disponiveis %}
+                            <option value="{{ f }}" {% if f == filial_selecionada %}selected{% endif %}>{{ f }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-4">
+                        <label for="unidade_filtro" class="form-label">Filtrar por Unidade</label>
+                        <select name="unidade" id="unidade_filtro" class="form-select">
+                            {# Este dropdown será populado pelo JavaScript #}
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-info me-2">Aplicar Filtro</button>
+                        <a href="{{ url_for('main.lista_placas') }}" class="btn btn-secondary">Limpar</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Exibição dos veículos agrupados por unidade #}
+    {% if unidades %}
+        {% for unidade, veiculos_unidade in unidades.items()|sort %}
+        <div class="unidade mb-5">
+          <h2>Unidade: {{ unidade }}</h2>
+          <div class="tabela-scroll">
+            <table class="tabela-index">
+              <thead>
+                <tr>
+                  <th>Motorista</th>
+                  <th>Placa Cavalo</th>
+                  <th>Engate 1</th>
+                  <th>Engate 2</th>
+                  <th>Modelo</th>
+                  <th>Fabricante</th>
+                  <th>Ano</th>
+                  <th>KM Atual</th>
+                  <th>Próx. Preventiva</th>
+                  <th>Próx. Intermediária</th>
+                  <th>Próx. Diferencial</th>
+                  <th>Próx. Câmbio</th>
+                  <th>Próx. Calibragem</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for v in veiculos_unidade %}
+                  {% set cavalo = v.placa_cavalo %}
+                  {% if cavalo %}
+                    {% set vencido = (
+                      (cavalo.km_para_preventiva is not none and cavalo.km_para_preventiva < 0) or
+                      (cavalo.km_para_intermediaria is not none and cavalo.km_para_intermediaria < 0) or
+                      (cavalo.km_para_diferencial is not none and cavalo.km_para_diferencial < 0) or
+                      (cavalo.km_para_cambio is not none and cavalo.km_para_cambio < 0) or
+                      (cavalo.data_proxima_calibragem and cavalo.data_proxima_calibragem <= current_date)
+                    ) %}
+                    <tr class="{{ 'alerta' if vencido else '' }}">
+                      <td>{{ v.motorista.nome if v.motorista else '-' }}</td>
+                      <td><a href="{{ url_for('checklist.por_placa', placa=cavalo.placa) }}" class="text-decoration-none link-primary">{{ cavalo.placa }}</a></td>
+                      <td>{{ v.placa_carreta1.placa if v.placa_carreta1 else '-' }}</td>
+                      <td>{{ v.placa_carreta2.placa if v.placa_carreta2 else '-' }}</td>
+                      <td>{{ cavalo.modelo }}</td>
+                      <td>{{ cavalo.fabricante }}</td>
+                      <td>{{ cavalo.ano }}</td>
+                      <td>
+                        {% if tem_permissao('editar_km') %}
+                          <form action="{{ url_for('main.atualizar_km', id=cavalo.id) }}" method="POST" style="display: flex; gap: 6px; align-items: center;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="number" name="km_atual" value="{{ cavalo.km_atual }}" class="form-control form-control-sm" style="min-width: 120px;" required>
+                            <button type="submit" title="Atualizar KM" class="btn btn-success btn-sm py-1 px-2">✔️</button>
+                          </form>
+                        {% else %}
+                          <span class="text-muted">{{ cavalo.km_atual | format_km }}</span>
+                        {% endif %}
+                      </td>
+                      <td>{% if cavalo.km_para_preventiva is not none %}<span class="{{ 'vencida' if cavalo.km_para_preventiva < 0 }}">{{ cavalo.km_para_preventiva | format_km }}</span>{% else %}-{% endif %}</td>
+                      <td>{% if cavalo.km_para_intermediaria is not none %}<span class="{{ 'vencida' if cavalo.km_para_intermediaria < 0 }}">{{ cavalo.km_para_intermediaria | format_km }}</span>{% else %}-{% endif %}</td>
+                      <td>{% if cavalo.km_para_diferencial is not none %}<span class="{{ 'vencida' if cavalo.km_para_diferencial < 0 }}">{{ cavalo.km_para_diferencial | format_km }}</span>{% else %}-{% endif %}</td>
+                      <td>{% if cavalo.km_para_cambio is not none %}<span class="{{ 'vencida' if cavalo.km_para_cambio < 0 }}">{{ cavalo.km_para_cambio | format_km }}</span>{% else %}-{% endif %}</td>
+                      <td>
+                        {% if cavalo.data_proxima_calibragem %}
+                            <span class="{{'vencida' if cavalo.data_proxima_calibragem <= current_date}}">{{ cavalo.data_proxima_calibragem.strftime('%d/%m/%Y') }}</span>
+                        {% else %}-{% endif %}
+                      </td>
+                      <td><a href="{{ url_for('main.cadastro_veiculo', id=v.id) }}" class="btn-azul" title="Editar">✏️</a></td>
+                    </tr>
+                  {% endif %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div> 
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-secondary text-center">Nenhum veículo encontrado para os filtros selecionados.</div>
+    {% endif %}
+</div>
+
+{# PASSO 2: Removemos o bloco <style> daqui #}
+
+{% endblock %}
+
+
+{% block scripts %}
+  {{ super() }}
+
+  {# PASSO 3: Adicionando os dados para o JS de forma segura #}
+  <script type="application/json" id="filial-unidade-map-data">{{ filial_unidade_map|tojson|safe }}</script>
+  <script type="application/json" id="todas-unidades-data">{{ todas_unidades_json|tojson|safe }}</script>
+  <script type="text/plain" id="unidade-selecionada-data">{{ unidade_selecionada }}</script>
+  <script type="text/plain" id="filial-selecionada-data">{{ filial_selecionada }}</script>
+
+  {# PASSO 4: Adicionando o link para o novo arquivo JavaScript #}
+  <script src="{{ url_for('static', filename='js/placas_filtros.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,557 @@
+{% extends "base.html" %}
+
+{% block titulo %}Gerenciamento de Frotas{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<style>
+    .placa-edit-btn {
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+        cursor: pointer;
+        font-size: 0.8em;
+    }
+    .badge-container:hover .placa-edit-btn {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+
+{% block conteudo %}
+<div class="container-fluid mt-4">
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message|safe }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Card de Filtros -->
+    {% if current_user.tipo == 'adm' or (current_user.tipo == 'master' and not current_user.unidade) %}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-filter me-2"></i>Filtros</h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('veiculos.gerenciar_veiculos') }}">
+                <div class="row align-items-end">
+                    {% if current_user.tipo == 'adm' %}
+                    <div class="col-md-4">
+                        <label for="filial" class="form-label">Filtrar por Filial</label>
+                        <select name="filial" id="filial" class="form-select">
+                            <option value="">Todas as Filiais</option>
+                            {% for f in filiais_disponiveis %}
+                            <option value="{{ f }}" {% if f == filial_selecionada %}selected{% endif %}>{{ f }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-4">
+                        <label for="unidade" class="form-label">Filtrar por Unidade</label>
+                        <select name="unidade" id="unidade" class="form-select">
+                            <option value="">Todas as Unidades</option>
+                            {% for u in unidades_disponiveis %}
+                            <option value="{{ u }}" {% if u == unidade_selecionada %}selected{% endif %}>{{ u }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-info me-2">Aplicar</button>
+                        <a href="{{ url_for('veiculos.gerenciar_veiculos') }}" class="btn btn-secondary">Limpar</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Coluna para Gerenciamento de Conjuntos (Veículos) -->
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Conjuntos Cadastrados</h6>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVeiculoModal">
+                        <i class="fas fa-plus me-2"></i>Adicionar Conjunto
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>Nome do Conjunto</th>
+                                    <th>Filial / Unidade</th>
+                                    <th>Placas (Ativos Físicos)</th>
+                                    <th class="text-center">Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for veiculo in veiculos|sort(attribute='ativo', reverse=True) %}
+                                <tr class="{% if not veiculo.ativo %}table-light text-muted{% endif %}">
+                                    <td>
+                                        {{ veiculo.nome_conjunto }}
+                                        {% if not veiculo.ativo %}<span class="badge bg-secondary ms-2">Arquivado</span>{% endif %}
+                                    </td>
+                                    <td>{{ veiculo.filial or '--' }} / {{ veiculo.unidade or '--' }}</td>
+                                    <td>
+                                        {% if veiculo.placa_cavalo %}
+                                            <span class="badge bg-primary me-1 badge-container">{{ veiculo.placa_cavalo.placa }}
+                                                <i class="fas fa-pencil-alt placa-edit-btn" 
+                                                   title="Editar Detalhes da Placa do Cavalo" 
+                                                   onclick="openEditPlacaModal(
+                                                       '{{ url_for("veiculos.get_placa_details", placa_id=veiculo.placa_cavalo.id) }}',
+                                                       '{{ url_for("veiculos.update_placa_details", placa_id=veiculo.placa_cavalo.id) }}'
+                                                   )"></i>
+                                            </span>
+                                        {% endif %}
+                                        {% if veiculo.placa_carreta1 %}
+                                            <span class="badge bg-info text-dark me-1">{{ veiculo.placa_carreta1.placa }}</span>
+                                        {% endif %}
+                                        {% if veiculo.placa_carreta2 %}
+                                            <span class="badge bg-info text-dark">{{ veiculo.placa_carreta2.placa }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if veiculo.ativo %}
+                                            <span class="badge bg-success">Ativo</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inativo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editVeiculoModal-{{ veiculo.id }}" title="Editar Composição do Conjunto">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-{{ 'secondary' if veiculo.ativo else 'success' }} btn-sm" data-bs-toggle="modal" data-bs-target="#toggleStatusVeiculoModal-{{ veiculo.id }}" title="{{ 'Desativar' if veiculo.ativo else 'Reativar' }} Conjunto">
+                                            <i class="fas fa-{{ 'toggle-off' if veiculo.ativo else 'toggle-on' }}"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center">Nenhum conjunto encontrado.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna para Gerenciamento de Placas -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Adicionar Nova Placa (Ativo Físico)</h6>
+                </div>
+                <div class="card-body">
+                     <form action="{{ url_for('veiculos.add_placa') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label class="form-label">Número da Placa</label>
+                            <input type="text" class="form-control" name="placa" style="text-transform:uppercase" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tipo</label>
+                            <select name="tipo" class="form-select" required>
+                                <option value="" disabled selected>-- Selecione --</option>
+                                <option value="CAVALO">Cavalo</option>
+                                <option value="BITRUCK">Bitruck</option>
+                                <option value="CARRETA">Carreta</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Fabricante</label>
+                            <input type="text" class="form-control" name="fabricante" style="text-transform:uppercase">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Modelo</label>
+                            <input type="text" class="form-control" name="modelo" style="text-transform:uppercase">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Filial (Operação)</label>
+                            <input type="text" class="form-control" name="filial" list="filiais_datalist" placeholder="Digite ou selecione uma filial" style="text-transform:uppercase">
+                        </div>
+                         <div class="mb-3">
+                            <label class="form-label">Unidade</label>
+                            {% if current_user.unidade and current_user.tipo != 'adm' %}
+                                <input type="text" class="form-control" name="unidade" value="{{ current_user.unidade }}" readonly>
+                            {% else %}
+                                <input type="text" class="form-control" name="unidade" list="unidades_datalist" required placeholder="Digite ou selecione uma unidade" style="text-transform:uppercase">
+                            {% endif %}
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Adicionar Placa</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card shadow mb-4">
+                 <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Placas Cadastradas</h6>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    <ul class="list-group list-group-flush">
+                        {% for placa in placas|sort(attribute='placa') %}
+                             <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ placa.placa }}</strong> <small class="text-muted">({{ placa.tipo }})</small><br>
+                                    <small class="text-muted">{{ placa.filial or '--' }} / {{ placa.unidade or '--' }}</small>
+                                </div>
+                                <div>
+                                    {% if placa.id in placas_em_uso_ids %}
+                                        <span class="badge bg-warning text-dark">Em Uso</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Disponível</span>
+                                    {% endif %}
+                                    <form class="d-inline" action="{{ url_for('veiculos.delete_placa', placa_id=placa.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir a placa {{placa.placa}}? Esta ação é irreversível e só deve ser feita se a placa nunca foi usada.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-danger btn-sm py-0 px-1" title="Excluir Placa"><i class="fas fa-times"></i></button>
+                                    </form>
+                                </div>
+                            </li>
+                        {% else %}
+                            <li class="list-group-item">Nenhuma placa encontrada.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- =========================================================================================== -->
+<!--                                       DATALISTS                                             -->
+<!-- =========================================================================================== -->
+
+<datalist id="filiais_datalist">
+    {% for f in filiais_disponiveis %}<option value="{{ f }}">{% endfor %}
+</datalist>
+
+<datalist id="unidades_datalist">
+    {% for u in unidades_gerais %}<option value="{{ u }}">{% endfor %}
+</datalist>
+
+
+<!-- =========================================================================================== -->
+<!--                                       MODAIS                                                -->
+<!-- =========================================================================================== -->
+
+
+<!-- Modal de Adicionar Novo Conjunto (MODIFICADO) -->
+<div class="modal fade" id="addVeiculoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('veiculos.add_veiculo') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Adicionar Novo Conjunto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nome do Conjunto</label>
+                        <input type="text" class="form-control" name="nome_conjunto" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Filial (Operação)</label>
+                            <input type="text" class="form-control" name="filial" list="filiais_datalist" placeholder="Digite ou selecione" style="text-transform:uppercase">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Unidade</label>
+                            {% if current_user.unidade and current_user.tipo != 'adm' %}
+                                <input type="text" class="form-control" name="unidade" value="{{ current_user.unidade }}" readonly>
+                            {% else %}
+                                <input type="text" class="form-control" name="unidade" list="unidades_datalist" required placeholder="Digite ou selecione" style="text-transform:uppercase">
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Placa Cavalo/Bitruck</label>
+                        <select name="placa_cavalo_id" class="form-select" required>
+                            <option value="">-- Selecione um cavalo --</option>
+                            {% for p in placas_cavalo_disponiveis %}
+                                <option value="{{ p.id }}">{{ p.placa }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Placa Carreta 1</label>
+                        <select name="placa_carreta1_id" class="form-select">
+                            <option value="">-- Nenhuma --</option>
+                            {% for p in placas_carreta_disponiveis %}
+                                <option value="{{ p.id }}">{{ p.placa }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                     <div class="mb-3">
+                        <label class="form-label">Placa Carreta 2</label>
+                        <select name="placa_carreta2_id" class="form-select">
+                            <option value="">-- Nenhuma --</option>
+                           {% for p in placas_carreta_disponiveis %}
+                                <option value="{{ p.id }}">{{ p.placa }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Conjunto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Genérico para Editar Detalhes da PLACA -->
+<div class="modal fade" id="editPlacaDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="editPlacaDetailsForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editPlacaDetailsTitle">Editar Detalhes da Placa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">KM Atual</label>
+                            <input type="number" class="form-control" name="km_atual" id="placa-km_atual">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Data da Última Calibragem</label>
+                            <input type="date" class="form-control" name="data_calibragem" id="placa-data_calibragem">
+                        </div>
+                    </div>
+                    <hr>
+                    <h6>Controle de Revisões</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light mb-3">
+                                <strong>Preventiva</strong>
+                                <div class="mb-2 mt-2">
+                                    <label class="form-label">Intervalo de KM</label>
+                                    <input type="number" class="form-control" name="km_troca_preventiva" id="placa-km_troca_preventiva">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">KM da Última Revisão</label>
+                                    <input type="number" class="form-control" name="km_ultima_revisao_preventiva" id="placa-km_ultima_revisao_preventiva">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light mb-3">
+                                <strong>Intermediária</strong>
+                                <div class="mb-2 mt-2">
+                                    <label class="form-label">Intervalo de KM</label>
+                                    <input type="number" class="form-control" name="km_troca_intermediaria" id="placa-km_troca_intermediaria">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">KM da Última Revisão</label>
+                                    <input type="number" class="form-control" name="km_ultima_revisao_intermediaria" id="placa-km_ultima_revisao_intermediaria">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <h6>Controle de Troca de Óleo</h6>
+                     <div class="row">
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light mb-3">
+                                <strong>Diferencial</strong>
+                                <div class="mb-2 mt-2">
+                                    <label class="form-label">Intervalo (KM)</label>
+                                    <input type="number" class="form-control" name="intervalo_oleo_diferencial" id="placa-intervalo_oleo_diferencial">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">KM da Última Troca</label>
+                                    <input type="number" class="form-control" name="troca_oleo_diferencial" id="placa-troca_oleo_diferencial">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                             <div class="p-3 border rounded bg-light mb-3">
+                                <strong>Câmbio</strong>
+                                <div class="mb-2 mt-2">
+                                    <label class="form-label">Intervalo (KM)</label>
+                                    <input type="number" class="form-control" name="intervalo_oleo_cambio" id="placa-intervalo_oleo_cambio">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">KM da Última Troca</label>
+                                    <input type="number" class="form-control" name="troca_oleo_cambio" id="placa-troca_oleo_cambio">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Detalhes da Placa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+{% for veiculo in veiculos %}
+<!-- Modal de Edição de CONJUNTO -->
+<div class="modal fade" id="editVeiculoModal-{{ veiculo.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('veiculos.edit_veiculo', veiculo_id=veiculo.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Conjunto: {{ veiculo.nome_conjunto }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                     <div class="mb-3">
+                        <label class="form-label">Nome do Conjunto</label>
+                        <input type="text" class="form-control" name="nome_conjunto" value="{{ veiculo.nome_conjunto }}" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Unidade</label>
+                            {% if current_user.tipo == 'master' %}
+                                <input type="text" class="form-control" name="unidade" value="{{ veiculo.unidade }}" list="unidades_list" required>
+                            {% else %}
+                                <input type="text" class="form-control" name="unidade" value="{{ veiculo.unidade }}" readonly>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Filial (Operação)</label>
+                            <input type="text" class="form-control" name="filial" value="{{ veiculo.filial or '' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Placa Cavalo/Bitruck</label>
+                        <select name="placa_cavalo_id" class="form-select" required>
+                            <option value="">-- Selecione --</option>
+                            {% if veiculo.placa_cavalo %}<option value="{{ veiculo.placa_cavalo.id }}" selected>{{ veiculo.placa_cavalo.placa }} (Atual)</option>{% endif %}
+                            {% for p in placas_cavalo_disponiveis %}<option value="{{ p.id }}">{{ p.placa }}</option>{% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Placa Carreta 1</label>
+                        <select name="placa_carreta1_id" class="form-select">
+                            <option value="">-- Nenhuma --</option>
+                            {% if veiculo.placa_carreta1 %}<option value="{{ veiculo.placa_carreta1.id }}" selected>{{ veiculo.placa_carreta1.placa }} (Atual)</option>{% endif %}
+                            {% for p in placas_carreta_disponiveis %}<option value="{{ p.id }}">{{ p.placa }}</option>{% endfor %}
+                        </select>
+                    </div>
+
+                     <div class="mb-3">
+                        <label class="form-label">Placa Carreta 2</label>
+                        <select name="placa_carreta2_id" class="form-select">
+                            <option value="">-- Nenhuma --</option>
+                            {% if veiculo.placa_carreta2 %}<option value="{{ veiculo.placa_carreta2.id }}" selected>{{ veiculo.placa_carreta2.placa }} (Atual)</option>{% endif %}
+                           {% for p in placas_carreta_disponiveis %}<option value="{{ p.id }}">{{ p.placa }}</option>{% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Observações</label>
+                        <textarea class="form-control" name="obs" rows="2">{{ veiculo.obs or '' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Ativar/Desativar Conjunto -->
+<div class="modal fade" id="toggleStatusVeiculoModal-{{ veiculo.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Alteração de Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if veiculo.ativo %}
+                    <p>Tem certeza que deseja <strong>desativar</strong> o conjunto <strong>{{ veiculo.nome_conjunto }}</strong>?</p>
+                    <p class="text-warning">O conjunto será arquivado e não poderá ser usado em novos checklists. O histórico será mantido.</p>
+                    {% if veiculo.motorista %}
+                        <p class="text-danger">Atenção: O motorista <strong>{{ veiculo.motorista.nome }}</strong> será desvinculado deste conjunto.</p>
+                    {% endif %}
+                {% else %}
+                    <p>Tem certeza que deseja <strong>reativar</strong> o conjunto <strong>{{ veiculo.nome_conjunto }}</strong>?</p>
+                    <p class="text-success">O conjunto ficará disponível para ser vinculado a motoristas novamente.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <form action="{{ url_for('veiculos.toggle_veiculo_status', veiculo_id=veiculo.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    {% if veiculo.ativo %}
+                         <button type="submit" class="btn btn-warning">Sim, Desativar</button>
+                    {% else %}
+                        <button type="submit" class="btn btn-success">Sim, Reativar</button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// --- CORREÇÃO: Função recebe as URLs prontas do template ---
+async function openEditPlacaModal(detailsUrl, updateUrl) {
+    try {
+        // 1. Buscar os dados da placa na API usando a URL correta
+        const response = await fetch(detailsUrl);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Não foi possível carregar os dados da placa. Status: ${response.status}. Detalhe: ${errorText}`);
+        }
+        const data = await response.json();
+
+        // 2. Popular o formulário do modal com os dados recebidos
+        document.getElementById('editPlacaDetailsTitle').innerText = `Editar Detalhes da Placa: ${data.placa}`;
+        document.getElementById('placa-km_atual').value = data.km_atual || '';
+        document.getElementById('placa-data_calibragem').value = data.data_calibragem || '';
+        document.getElementById('placa-km_troca_preventiva').value = data.km_troca_preventiva || '';
+        document.getElementById('placa-km_ultima_revisao_preventiva').value = data.km_ultima_revisao_preventiva || '';
+        document.getElementById('placa-km_troca_intermediaria').value = data.km_troca_intermediaria || '';
+        document.getElementById('placa-km_ultima_revisao_intermediaria').value = data.km_ultima_revisao_intermediaria || '';
+        document.getElementById('placa-intervalo_oleo_diferencial').value = data.intervalo_oleo_diferencial || '';
+        document.getElementById('placa-troca_oleo_diferencial').value = data.troca_oleo_diferencial || '';
+        document.getElementById('placa-intervalo_oleo_cambio').value = data.intervalo_oleo_cambio || '';
+        document.getElementById('placa-troca_oleo_cambio').value = data.troca_oleo_cambio || '';
+
+        // 3. Definir a URL de action do formulário dinamicamente
+        const form = document.getElementById('editPlacaDetailsForm');
+        form.action = updateUrl;
+
+        // 4. Abrir o modal
+        const editPlacaModal = new bootstrap.Modal(document.getElementById('editPlacaDetailsModal'));
+        editPlacaModal.show();
+
+    } catch (error) {
+        console.error('Erro ao abrir modal:', error);
+        alert('Ocorreu um erro ao buscar os detalhes da placa. Verifique o console para mais detalhes.');
+    }
+}
+</script>
+{% endblock %}

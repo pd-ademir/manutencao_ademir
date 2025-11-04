@@ -1,0 +1,20 @@
+/* Estilos para a página de placas (placas.html) */
+
+.tabela-scroll {
+  overflow-x: auto; /* Permite rolagem horizontal em telas pequenas */
+}
+
+.vencida {
+  color: red;
+  font-weight: bold;
+}
+
+.tabela-index {
+  width: 100%; /* Garante que a tabela use todo o espaço do contêiner */
+  white-space: nowrap; /* Impede que o texto quebre, forçando a rolagem */
+}
+
+/* Alinhamento vertical para células da tabela */
+.tabela-index tbody td {
+    vertical-align: middle;
+}

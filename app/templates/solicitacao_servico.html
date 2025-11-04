@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitação de Serviço (SS){% endblock %}
+
+{% block conteudo %}
+<div class="container mt-4">
+    <h1 class="mb-4">Abrir Nova Solicitação de Serviço (SS)</h1>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h4>Informações da Solicitação</h4>
+        </div>
+        <div class="card-body">
+            <form>
+                <div class="form-group mb-3">
+                    <label for="placa" class="form-label">Placa do Veículo</label>
+                    <input type="text" class="form-control" id="placa" name="placa" placeholder="Ex: ABC-1234" required>
+                </div>
+                <div class="form-group mb-3">
+                    <label for="descricao" class="form-label">Descrição do Serviço</label>
+                    <textarea class="form-control" id="descricao" name="descricao" rows="4" placeholder="Descreva o problema ou serviço necessário..." required></textarea>
+                </div>
+                <div class="form-group mb-3">
+                    <label for="data_previsao" class="form-label">Previsão de Parada</label>
+                    <input type="date" class="form-control" id="data_previsao" name="data_previsao" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Enviar Solicitação</button>
+            </form>
+        </div>
+    </div>
+
+    <hr>
+
+    <h2 class="mb-4">Minhas Solicitações</h2>
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h4>Histórico de SS</h4>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>#SS</th>
+                                <th>Placa</th>
+                                <th>Serviço Solicitado</th>
+                                <th>Data da Solicitação</th>
+                                <th>Previsão de Parada</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Exemplo Fictício 1: Aceita -->
+                            <tr>
+                                <td>SS-001</td>
+                                <td>QWE-5678</td>
+                                <td>Troca de pneu dianteiro direito.</td>
+                                <td>15/07/2024</td>
+                                <td>20/07/2024</td>
+                                <td><span class="badge bg-success">Aceita</span></td>
+                            </tr>
+                            <!-- Exemplo Fictício 2: Negada -->
+                            <tr>
+                                <td>SS-002</td>
+                                <td>RTY-9012</td>
+                                <td>Instalação de som automotivo.</td>
+                                <td>16/07/2024</td>
+                                <td>22/07/2024</td>
+                                <td><span class="badge bg-danger">Negada</span></td>
+                            </tr>
+                            <!-- Exemplo Fictício 3: Precisa ser Revista -->
+                            <tr>
+                                <td>SS-003</td>
+                                <td>UIO-3456</td>
+                                <td>Verificar barulho no motor.</td>
+                                <td>17/07/2024</td>
+                                <td>25/07/2024</td>
+                                <td><span class="badge bg-warning text-dark">Revisar</span></td>
+                            </tr>
+                             <!-- Exemplo Fictício 4: Em Análise -->
+                            <tr>
+                                <td>SS-004</td>
+                                <td>FGH-1122</td>
+                                <td>Freio fazendo barulho.</td>
+                                <td>18/07/2024</td>
+                                <td>28/07/2024</td>
+                                <td><span class="badge bg-info">Em Análise</span></td>
+                            </tr>
+                            <!-- Exemplo Fictício 5: Aguardando Aprovação -->
+                            <tr>
+                                <td>SS-005</td>
+                                <td>JKL-7788</td>
+                                <td>Troca de óleo e filtro.</td>
+                                <td>19/07/2024</td>
+                                <td>30/07/2024</td>
+                                <td><span class="badge bg-secondary">Aguardando Aprovação</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+</div>
+{% endblock %}

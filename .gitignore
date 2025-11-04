@@ -1,0 +1,38 @@
+# Arquivos de Bytecode e Cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pasta de Instância do Flask (contém o BD e outros arquivos de configuração)
+instance/
+
+# Banco de dados e Dumps
+*.db
+*.sqlite3
+manutencao_dump.sql
+
+# Ambiente Virtual
+.venv/
+env/
+venv/
+ENV/
+
+# Arquivos de ambiente (para senhas e segredos)
+.env
+.flaskenv
+
+# Arquivos de IDE e editores
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+
+.env.local
+.env.prod
+.env 

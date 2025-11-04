@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Painel de Cadastro{% endblock %}
+
+{% block conteudo %}
+
+    <h1>Veículos Cadastrados</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Placa</th>
+                <th>Modelo</th>
+                <th>Motorista</th>
+                <th>Unidade</th>
+                <th>KM Atual</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for veiculo in veiculos %}
+            <tr>
+                <td>{{ veiculo.placa }}</td>
+                <td>{{ veiculo.modelo }}</td>
+                <td>{{ veiculo.motorista }}</td>
+                <td>{{ veiculo.unidade }}</td>
+                <td>{{ veiculo.km_atual }}</td>
+                <td>
+                    <a href="{{ url_for('main.editar_veiculo', id=veiculo.id) }}">✏️ Editar</a> |
+                    <a href="{{ url_for('main.excluir_veiculo', id=veiculo.id) }}" onclick="return confirm('Tem certeza que deseja excluir este veículo?')">🗑️ Excluir</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endblock %}
+</body>
+</html>

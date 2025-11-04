@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Gerenciar Usuários{% endblock %}
+
+{% block conteudo %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Gerenciar Usuários</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Formulário de Cadastro -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Adicionar Novo Usuário</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('main.adicionar_usuario') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label for="nome" class="form-label">Nome de Login:</label>
+                        <input type="text" id="nome" name="nome" class="form-control" required>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="senha" class="form-label">Senha:</label>
+                        <input type="password" id="senha" name="senha" class="form-control" required>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="tipo" class="form-label">Tipo de Acesso:</label>
+                        <select id="tipo" name="tipo" class="form-select" required>
+                            <option value="comum">COMUM</option>
+                            <option value="master">MASTER</option>
+                            <option value="adm">ADM</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="filial" class="form-label">Filial:</label>
+                        <select id="filial" name="filial" class="form-select">
+                            <option value="">Nenhuma</option>
+                            {% for f in filiais %}
+                            <option value="{{ f }}">{{ f }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="unidade" class="form-label">Unidade:</label>
+                        <select id="unidade" name="unidade" class="form-select">
+                            <option value="">Nenhuma</option>
+                            {% for u in unidades %}
+                            <option value="{{ u }}">{{ u }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success">Adicionar Usuário</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de Usuários Cadastrados -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Usuários Cadastrados</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nome</th>
+                            <th>Login</th>
+                            <th>Tipo</th>
+                            <th>Filial</th>
+                            <th>Unidade</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios %}
+                        <tr>
+                            <td>{{ u.id }}</td>
+                            <td>{{ u.nome }}</td>
+                            <td>{{ u.usuario }}</td>
+                            <td>{{ u.tipo|upper }}</td>
+                            <td>{{ u.filial or '--' }}</td>
+                            <td>{{ u.unidade or '--' }}</td>
+                            <td>
+                                {% if u.usuario.lower() != 'admin' and u.id != current_user.id %}
+                                <form method="POST" action="{{ url_for('main.remover_usuario', id=u.id) }}" style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit"
+                                            onclick="return confirm('Deseja remover o usuário {{ u.usuario }}?')"
+                                            class="btn btn-danger btn-sm" title="Remover">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

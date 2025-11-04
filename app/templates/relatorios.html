@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block titulo %}Relatórios de Manutenção{% endblock %}
+
+{% block conteudo %}
+<h1>📊 Relatórios de Manutenção</h1>
+<p>Selecione abaixo o tipo de relatório que deseja baixar em PDF:</p>
+
+<div class="relatorio-opcoes">
+  <form method="get" action="{{ url_for('main.baixar_relatorio_pdf') }}">
+    <div class="form-group">
+      <label for="tipo_relatorio"><strong>Tipo de Relatório:</strong></label>
+      <select name="tipo" id="tipo_relatorio" class="form-control" required>
+        <option value="" disabled selected>Escolha uma opção</option>
+        <option value="a_vencer">🚧 Veículos com Manutenções a Vencer</option>
+        <option value="realizadas">🛠️ Manutenções Realizadas</option>
+        <option value="bloqueados">🚫 Veículos Atualmente Bloqueados</option>
+        <option value="historico_bloqueios">📖 Histórico Completo de Bloqueios</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-danger" style="margin-top: 15px;">
+      📄 Baixar Relatório em PDF
+    </button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Painel de Manutenção{% endblock %}
+
+{% block conteudo %}
+
+  <h1>Registrar Manutenção</h1>
+
+  <form method="POST" class="formulario">
+    {{ form.csrf_token }}
+
+    <div class="form-group">
+      {{ form.veiculo_id.label }}
+      {{ form.veiculo_id(class="form-control") }}
+    </div>
+
+    <div class="form-group">
+      {{ form.data.label }}
+      {{ form.data(class="form-control") }}
+    </div>
+
+    <div class="form-group">
+      {{ form.tipo.label }}
+      {{ form.tipo(class="form-control") }}
+      <small style="color:#555; display:block; margin-top:5px;">
+        • <strong>Preventiva</strong>: Troca de óleo e filtros (atualiza preventiva <em>e</em> intermediária)<br>
+        • <strong>Intermediária</strong>: Apenas filtro (atualiza somente a intermediária)<br>
+        • <strong>Diferencial</strong>: Atualiza apenas a troca de óleo do diferencial<br>
+        • <strong>Câmbio</strong>: Atualiza apenas a troca de óleo da caixa de câmbio <br>
+        • <strong>Carreta</strong>: Seleciona placas dos engates cadastrados
+      </small>
+    </div>
+
+    <div class="form-group">
+      {{ form.km_realizado.label }}
+      {{ form.km_realizado(class="form-control") }}
+      <small style="color:#555;">
+        Informe o odômetro no momento da manutenção.
+      </small>
+    </div>
+
+    <div class="form-group">
+      {{ form.observacoes.label }}
+      {{ form.observacoes(class="form-control", rows="3") }}
+    </div>
+
+    <div class="form-group">
+      {# CORREÇÃO APLICADA AQUI: removido o argumento 'current_user.tipo' #}
+      <button type="submit" class="btn-verde" {% if not tem_permissao('alterar_dados') %}disabled title="Apenas leitura"{% endif %}>
+        Registrar
+      </button>
+    </div>
+
+  </form>
+
+{% endblock %}

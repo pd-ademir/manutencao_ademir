@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Painel de Cadastro{% endblock %}
+
+{% block conteudo %}
+
+  <h1>Cadastro de Veículo</h1>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flash-messages">
+        {% for category, message in messages %}
+          <li class="flash {{ category }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST" class="formulario" autocomplete="off">
+    {{ form.csrf_token }}
+
+    <div class="form-group">{{ form.placa.label }}<br>{{ form.placa(class="form-control") }}</div>
+    <div class="form-group">{{ form.modelo.label }}<br>{{ form.modelo(class="form-control") }}</div>
+    <div class="form-group">{{ form.fabricante.label }}<br>{{ form.fabricante(class="form-control") }}</div>
+    <div class="form-group">{{ form.ano.label }}<br>{{ form.ano(class="form-control") }}</div>
+    <div class="form-group">{{ form.placa_1.label }}<br>{{ form.placa_1(class="form-control") }}</div>
+    <div class="form-group">{{ form.placa_2.label }}<br>{{ form.placa_2(class="form-control") }}</div>
+    <div class="form-group">{{ form.data_calibragem.label }}<br>{{ form.data_calibragem(class="form-control") }}</div>
+
+    <div class="form-group">{{ form.troca_oleo_diferencial.label }}<br>{{ form.troca_oleo_diferencial(class="form-control") }}</div>
+    <div class="form-group">{{ form.intervalo_oleo_diferencial.label }}<br>{{ form.intervalo_oleo_diferencial(class="form-control") }}</div>
+    <div class="form-group">{{ form.troca_oleo_cambio.label }}<br>{{ form.troca_oleo_cambio(class="form-control") }}</div>
+    <div class="form-group">{{ form.intervalo_oleo_cambio.label }}<br>{{ form.intervalo_oleo_cambio(class="form-control") }}</div>
+
+    <div class="form-group">{{ form.unidade.label }}<br>{{ form.unidade(class="form-control") }}</div>
+    <div class="form-group">{{ form.motorista.label }}<br>{{ form.motorista(class="form-control") }}</div>
+
+    <div class="form-group">{{ form.km_ultima_revisao_preventiva.label }}<br>{{ form.km_ultima_revisao_preventiva(class="form-control") }}</div>
+    <div class="form-group">{{ form.km_ultima_revisao_intermediaria.label }}<br>{{ form.km_ultima_revisao_intermediaria(class="form-control") }}</div>
+    <div class="form-group">{{ form.km_troca_preventiva.label }}<br>{{ form.km_troca_preventiva(class="form-control") }}</div>
+    <div class="form-group">{{ form.km_troca_intermediaria.label }}<br>{{ form.km_troca_intermediaria(class="form-control") }}</div>
+    <div class="form-group">{{ form.km_atual.label }}<br>{{ form.km_atual(class="form-control") }}</div>
+
+    <div class="form-group">
+      <button type="submit" class="btn-cadastrar">Cadastrar Veículo</button>
+    </div>
+    {% endblock %}
+  </form>
+</body>
+</html>

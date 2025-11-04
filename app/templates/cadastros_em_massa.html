@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastros em Massa{% endblock %}
+
+{% block header %}Cadastros e Atualizações em Massa{% endblock %}
+
+{% block conteudo %}
+<div class="container-fluid">
+
+    <!-- Alerta de Instruções Gerais -->
+    <div class="alert alert-info shadow mb-4">
+        <h5 class="alert-heading"><i class="fas fa-info-circle"></i> Como Funciona?</h5>
+        <p>
+            Este painel permite cadastrar novos itens ou atualizar os existentes a partir de um arquivo CSV. 
+            O sistema utiliza uma <strong>coluna-chave</strong> para cada tipo de dado:
+        </p>
+        <ul>
+            <li><strong>Placas:</strong> A coluna <code>placa</code> é a chave.</li>
+            <li><strong>Motoristas:</strong> A coluna <code>cpf</code> é a chave.</li>
+            <li><strong>Conjuntos:</strong> A coluna <code>nome_conjunto</code> é a chave.</li>
+        </ul>
+        <hr>
+        <p class="mb-0">
+            <strong>Lógica de Atualização:</strong> Se um item com a mesma chave já existir, o sistema compara todas as outras colunas. Se houver qualquer diferença, ele atualiza o registro. Se não houver diferenças, ele ignora a linha. Itens com chaves que não existem no banco de dados serão criados.
+        </p>
+    </div>
+
+    <div class="row">
+
+        <!-- Card de Upload para Placas -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">1. Upload de Placas</h6>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <p>Use o modelo para cadastrar/atualizar placas. Campos de data devem usar o formato <code>YYYY-MM-DD</code>.</p>
+                    <form action="{{ url_for('mass_update.upload_placas') }}" method="POST" enctype="multipart/form-data" class="mt-auto">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-3">
+                            <input class="form-control" type="file" name="csv_file" accept=".csv" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mb-2">Enviar Arquivo de Placas</button>
+                        <a href="{{ url_for('static', filename='modelos/modelo_placas.csv') }}" class="btn btn-secondary btn-sm w-100" download>
+                            <i class="fas fa-download me-1"></i> Baixar Modelo (Placas)
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card de Upload para Motoristas -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">2. Upload de Motoristas</h6>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <p>Use o modelo para cadastrar/atualizar motoristas. A senha será os 6 primeiros dígitos do CPF.</p>
+                    <form action="{{ url_for('mass_update.upload_motoristas') }}" method="POST" enctype="multipart/form-data" class="mt-auto">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-3">
+                            <input class="form-control" type="file" name="csv_file" accept=".csv" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mb-2">Enviar Arquivo de Motoristas</button>
+                        <a href="{{ url_for('static', filename='modelos/modelo_motoristas.csv') }}" class="btn btn-secondary btn-sm w-100" download>
+                            <i class="fas fa-download me-1"></i> Baixar Modelo (Motoristas)
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card de Upload para Conjuntos -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">3. Upload de Conjuntos</h6>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <p>Use o modelo para cadastrar/atualizar conjuntos. As placas e o CPF do motorista devem existir.</p>
+                    <form action="{{ url_for('mass_update.upload_conjuntos') }}" method="POST" enctype="multipart/form-data" class="mt-auto">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-3">
+                            <input class="form-control" type="file" name="csv_file" accept=".csv" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mb-2">Enviar Arquivo de Conjuntos</button>
+                        <a href="{{ url_for('static', filename='modelos/modelo_conjuntos.csv') }}" class="btn btn-secondary btn-sm w-100" download>
+                            <i class="fas fa-download me-1"></i> Baixar Modelo (Conjuntos)
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
