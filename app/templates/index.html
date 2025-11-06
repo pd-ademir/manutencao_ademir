@@ -51,7 +51,7 @@
         <tr data-placa="{{ cavalo.placa }}" class="{% if cavalo.em_manutencao %}linha-manutencao{% endif %}">
             <td>
                 {% if veiculo.placa_carreta1 and veiculo.placa_carreta1.data_proxima_revisao_carreta %}{% set dias_para_revisao = (veiculo.placa_carreta1.data_proxima_revisao_carreta - current_date).days %}{% if dias_para_revisao < 0 %}<span class="badge bg-danger" title="Revisão carreta atrasada em {{ -dias_para_revisao }} dias">🔴</span>{% elif dias_para_revisao <= 30 %}<span class="badge bg-warning text-dark" title="Revisão carreta em {{ dias_para_revisao }} dias">🟡</span>{% endif %}{% endif %}
-                <a href="{{ url_for('checklist.por_placa', placa=cavalo.placa) }}" class="link-primary text-decoration-none" title="Ver checklist do cavalo">{{ veiculo.nome_conjunto }}</a>
+                {{ veiculo.nome_conjunto }}
             </td>
             <td>{{ veiculo.motorista.nome if veiculo.motorista else '-' }}</td>
             <td>{{ cavalo.modelo }}</td>
