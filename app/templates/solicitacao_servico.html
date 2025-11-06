@@ -1,104 +1,127 @@
+
 {% extends "base.html" %}
 
-{% block title %}Solicitação de Serviço (SS){% endblock %}
+{% block titulo %}Solicitação de Serviço{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Estilos para a página de Solicitação de Serviço */
+  .form-container, .history-container {
+    background-color: #fff;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+  }
+
+  .form-container h2, .history-container h2 {
+    margin-bottom: 20px;
+    color: #333;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 10px;
+  }
+
+  .status-badge {
+    padding: 5px 10px;
+    border-radius: 15px;
+    color: #fff;
+    font-weight: 500;
+    font-size: 0.85em;
+    min-width: 100px;
+    text-align: center;
+  }
+
+  .status-em-analise { background-color: #ffc107; } /* Amarelo */
+  .status-enviando { background-color: #0dcaf0; } /* Ciano */
+  .status-erro-no-envio { background-color: #dc3545; } /* Vermelho */
+  .status-aceita { background-color: #198754; } /* Verde */
+  .status-negada { background-color: #6c757d; } /* Cinza */
+
+</style>
+{% endblock %}
 
 {% block conteudo %}
-<div class="container mt-4">
-    <h1 class="mb-4">Abrir Nova Solicitação de Serviço (SS)</h1>
+<div class="container-fluid">
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-header">
-            <h4>Informações da Solicitação</h4>
+  <!-- Formulário para Nova Solicitação -->
+  <div class="form-container">
+    <h2>📝 Nova Solicitação de Serviço</h2>
+    <form action="{{ url_for('ss.solicitar_servico') }}" method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+      <div class="row">
+        <!-- Campo de Placa -->
+        <div class="col-md-4 mb-3">
+          <label for="placa" class="form-label"><strong>Placa do Veículo *</strong></label>
+          <select class="form-select" id="placa" name="placa" required>
+            <option value="" disabled selected>Selecione uma placa...</option>
+            {% for p in placas %}
+              <option value="{{ p.placa }}">{{ p.placa }}</option>
+            {% endfor %}
+          </select>
         </div>
-        <div class="card-body">
-            <form>
-                <div class="form-group mb-3">
-                    <label for="placa" class="form-label">Placa do Veículo</label>
-                    <input type="text" class="form-control" id="placa" name="placa" placeholder="Ex: ABC-1234" required>
-                </div>
-                <div class="form-group mb-3">
-                    <label for="descricao" class="form-label">Descrição do Serviço</label>
-                    <textarea class="form-control" id="descricao" name="descricao" rows="4" placeholder="Descreva o problema ou serviço necessário..." required></textarea>
-                </div>
-                <div class="form-group mb-3">
-                    <label for="data_previsao" class="form-label">Previsão de Parada</label>
-                    <input type="date" class="form-control" id="data_previsao" name="data_previsao" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Enviar Solicitação</button>
-            </form>
+
+        <!-- Campo de Data de Previsão -->
+        <div class="col-md-4 mb-3">
+            <label for="data_previsao_parada" class="form-label"><strong>Previsão de Parada *</strong></label>
+            <input type="date" class="form-control" id="data_previsao_parada" name="data_previsao_parada" required>
         </div>
+      </div>
+
+      <!-- Campo de Descrição -->
+      <div class="row">
+        <div class="col-md-8 mb-3">
+          <label for="descricao" class="form-label"><strong>Descrição do Serviço *</strong></label>
+          <textarea class="form-control" id="descricao" name="descricao" rows="4" placeholder="Descreva detalhadamente o serviço ou problema..." required></textarea>
+        </div>
+      </div>
+
+      <!-- Botão de Envio -->
+      <div class="mt-3">
+        <button type="submit" class="btn btn-primary">🚀 Enviar Solicitação</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Histórico de Solicitações -->
+  <div class="history-container">
+    <h2>📜 Histórico de Solicitações</h2>
+    <div class="table-responsive">
+      <table class="table table-striped table-hover">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Placa</th>
+            <th>Descrição</th>
+            <th>Solicitante</th>
+            <th>Data da Solicitação</th>
+            <th>Previsão de Parada</th>
+            <th>Observações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in solicitacoes %}
+          <tr>
+            <td>
+              {% set status_class = 'status-' + s.status.lower().replace(' ', '-') %}
+              <span class="badge {{ status_class }}">{{ s.status }}</span>
+            </td>
+            <td>{{ s.placa }}</td>
+            <td>{{ s.descricao }}</td>
+            <td>{{ s.usuario.nome if s.usuario else 'N/A' }}</td>
+            <td>{{ s.data_solicitacao.strftime('%d/%m/%Y %H:%M') }}</td>
+            <td>{{ s.data_previsao_parada.strftime('%d/%m/%Y') }}</td>
+            <td>{{ s.observacao_externa or '-' }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" class="text-center">Nenhuma solicitação de serviço encontrada.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+  </div>
 
-    <hr>
-
-    <h2 class="mb-4">Minhas Solicitações</h2>
-        <div class="card shadow-sm">
-            <div class="card-header">
-                <h4>Histórico de SS</h4>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>#SS</th>
-                                <th>Placa</th>
-                                <th>Serviço Solicitado</th>
-                                <th>Data da Solicitação</th>
-                                <th>Previsão de Parada</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Exemplo Fictício 1: Aceita -->
-                            <tr>
-                                <td>SS-001</td>
-                                <td>QWE-5678</td>
-                                <td>Troca de pneu dianteiro direito.</td>
-                                <td>15/07/2024</td>
-                                <td>20/07/2024</td>
-                                <td><span class="badge bg-success">Aceita</span></td>
-                            </tr>
-                            <!-- Exemplo Fictício 2: Negada -->
-                            <tr>
-                                <td>SS-002</td>
-                                <td>RTY-9012</td>
-                                <td>Instalação de som automotivo.</td>
-                                <td>16/07/2024</td>
-                                <td>22/07/2024</td>
-                                <td><span class="badge bg-danger">Negada</span></td>
-                            </tr>
-                            <!-- Exemplo Fictício 3: Precisa ser Revista -->
-                            <tr>
-                                <td>SS-003</td>
-                                <td>UIO-3456</td>
-                                <td>Verificar barulho no motor.</td>
-                                <td>17/07/2024</td>
-                                <td>25/07/2024</td>
-                                <td><span class="badge bg-warning text-dark">Revisar</span></td>
-                            </tr>
-                             <!-- Exemplo Fictício 4: Em Análise -->
-                            <tr>
-                                <td>SS-004</td>
-                                <td>FGH-1122</td>
-                                <td>Freio fazendo barulho.</td>
-                                <td>18/07/2024</td>
-                                <td>28/07/2024</td>
-                                <td><span class="badge bg-info">Em Análise</span></td>
-                            </tr>
-                            <!-- Exemplo Fictício 5: Aguardando Aprovação -->
-                            <tr>
-                                <td>SS-005</td>
-                                <td>JKL-7788</td>
-                                <td>Troca de óleo e filtro.</td>
-                                <td>19/07/2024</td>
-                                <td>30/07/2024</td>
-                                <td><span class="badge bg-secondary">Aguardando Aprovação</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
 </div>
 {% endblock %}

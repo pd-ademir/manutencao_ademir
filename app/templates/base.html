@@ -27,12 +27,9 @@
         <li><a href="{{ url_for('main.plano_manutencao') }}">🗓️ Plano de Manutenção</a></li>
 
         {# --- ALTERAÇÃO: Usando a função tem_permissao para dar acesso ao adm --- #}
-        {% if tem_permissao('adm') %}
+        {% if tem_permissao('master,adm') %}
           <li><a href="{{ url_for('main.gerenciar_usuarios') }}">👥 Usuários</a></li>
           <li><a href="{{ url_for('main.exibir_logs') }}">📜 Logs</a></li>
-          {% endif %}
-          {% if tem_permissao('adm') %}
-          
           {# A rota 'relatorios' precisa ser criada se não existir #}
           {# <li><a href="{{ url_for('main.relatorios') }}">📊 Relatórios</a></li> #}
           <li><a href="{{ url_for('main.kpis') }}">📈 KPIs</a></li>
@@ -52,12 +49,11 @@
           <a href="#" class="dropdown-toggle" onclick="toggleDropdown('acoes-menu'); return false;">⚙️ Ações ▾</a>
           <ul class="dropdown-menu" id="acoes-menu">
             <li><a href="{{ url_for('main.realizar_manutencao') }}">➕ Nova Manutenção</a></li>
+            <li><a href="{{ url_for('ss.solicitar_servico') }}">📝 Solicitação de Serviço</a></li>
             {# --- ALTERAÇÃO: Usando a função tem_permissao para dar acesso ao adm --- #}
             {% if tem_permissao('master,comum,adm') %}
             <li><a href="{{ url_for('veiculos.gerenciar_veiculos') }}">📋 Gerenciar Conjuntos/Placas</a></li>
             <li><a href="{{ url_for('motoristas.gerenciar_motoristas') }}">👤 Gerenciar Motoristas</a></li>
-            {% endif %}
-            {% if tem_permissao('adm') %}
             <li><a href="{{ url_for('mass_update.index') }}">📤 Cadastros em Massa</a></li>
             {% endif %}
           </ul>
@@ -91,16 +87,14 @@
   <main class="conteudo">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for categoria, msg in messages %}
-        <div class="alert alert-{{ 'success' if categoria == 'success' else 'danger' }} mt-2">{{ msg }}</div>
+        <div class="alert alert-{{ 'success' if categoria == 'success' else 'danger' }}" mt-2">{{ msg }}</div>
       {% endfor %}
     {% endwith %}
     {% block conteudo %}{% endblock %}
   </main>
 
   <footer class="rodape">
-    Desenvolvido por 64Bits Informática &copy; {{ ano }}
-
-
+    Desenvolvido por 64Bits Informática &copy; 
   </footer>
 
   <script>

@@ -1,22 +1,17 @@
+
 import os
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_login import LoginManager
-from flask_wtf import CSRFProtect
 from urllib.parse import quote_plus
 from dotenv import load_dotenv
 
 from .models import Usuario
-from .extensions import db, migrate, login_manager
+from .extensions import db, migrate, login_manager, csrf
 from .utils import format_km
 from .checklist import checklist_bp
 from .mass_update_routes import mass_update_bp
 
 # Carrega variáveis do .env (se existir)
 load_dotenv()
-
-csrf = CSRFProtect()
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -101,6 +96,9 @@ def create_app():
     from .motorista_routes import motoristas_bp
     app.register_blueprint(motoristas_bp)
     app.register_blueprint(mass_update_bp)
-    # --- FIM DA ADIÇÃO ---
+    # --- FIM DA ADIção ---
+    
+    from .ss_routes import ss_bp
+    app.register_blueprint(ss_bp)
 
     return app

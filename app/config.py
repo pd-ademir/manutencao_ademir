@@ -34,9 +34,9 @@ class ProdConfig(BaseConfig):
     """
     Configuração para ambiente de produção na nuvem
     """
-    user = os.environ.get('CLOUD_DB_USER', 'Ornilio_neto')
+    user = os.environ.get('CLOUD_DB_USER', 'ornilio')
     senha = os.environ.get('CLOUD_DB_PASSWORD', '@Machado2025')
-    host = os.environ.get('CLOUD_DB_HOST', '34.39.255.52')
+    host = os.environ.get('CLOUD_DB_HOST', 'localhost')
     senha_encoded = quote_plus(senha)
 
     SQLALCHEMY_DATABASE_URI = f'mysql+pymysql://{user}:{senha_encoded}@{host}/manutencao'

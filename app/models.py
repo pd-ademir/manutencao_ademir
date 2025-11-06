@@ -197,6 +197,27 @@ class LogSistema(db.Model):
     data = db.Column(db.DateTime, default=datetime.utcnow)
     usuario = db.relationship('Usuario', backref='logs')
 
+
+class SolicitacaoServico(db.Model):
+    __tablename__ = 'solicitacoes_servico'
+    id = db.Column(db.Integer, primary_key=True)
+    placa = db.Column(db.String(10), nullable=False)
+    descricao = db.Column(db.Text, nullable=False)
+    data_solicitacao = db.Column(db.DateTime, default=datetime.utcnow)
+    data_previsao_parada = db.Column(db.Date)
+    status = db.Column(db.String(50), default='Em Análise')
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    usuario = db.relationship('Usuario')
+
+    # --- CAMPOS PARA INTEGRAÇÃO ---
+    id_externo = db.Column(db.String(100), nullable=True, index=True)
+    observacao_externa = db.Column(db.Text, nullable=True)
+    data_resposta_externa = db.Column(db.DateTime, nullable=True)
+
+    def __repr__(self):
+        return f'<SolicitacaoServico {self.id} - {self.placa}>'
+
+
 # ============================================================================
 # 4. TABELAS DO BANCO DE DADOS DE PNEUS
 # ============================================================================
