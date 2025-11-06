@@ -814,6 +814,10 @@ def lista_placas():
 
     # 2. Query base com filtro de permissão do usuário
     query = filtrar_query_por_usuario(Veiculo.query, Veiculo)
+    
+    # --- CORREÇÃO APLICADA AQUI ---
+    # Garante que apenas veículos ativos sejam exibidos no painel.
+    query = query.filter(Veiculo.ativo == True)
 
     # 3. Aplica os filtros de filial e unidade, se existirem
     if filial_filtro:
@@ -882,6 +886,7 @@ def lista_placas():
         unidade_selecionada=unidade_filtro,
         filial_unidade_map=filial_unidade_map # Mapa para o JS
     )
+
 
 
 @main.route('/unidade/<unidade>')
