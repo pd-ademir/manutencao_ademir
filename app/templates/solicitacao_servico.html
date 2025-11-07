@@ -86,6 +86,38 @@
   <!-- Histórico de Solicitações -->
   <div class="history-container">
     <h2>📜 Histórico de Solicitações</h2>
+    
+    <!-- FORMULÁRIO DE FILTROS PARA ADMINS -->
+    {% if current_user.tipo == 'adm' %}
+    <div class="card bg-light mb-4 p-3">
+        <form method="GET" action="{{ url_for('ss.solicitar_servico') }}">
+            <div class="row align-items-end">
+                <div class="col-md-4">
+                    <label for="filial" class="form-label">Filtrar por Filial</label>
+                    <select name="filial" id="filial" class="form-select">
+                        <option value="">Todas as Filiais</option>
+                        {% for f in filiais_disponiveis %}
+                            <option value="{{ f }}" {% if f == filial_selecionada %}selected{% endif %}>{{ f }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="unidade" class="form-label">Filtrar por Unidade</label>
+                    <select name="unidade" id="unidade" class="form-select">
+                        <option value="">Todas as Unidades</option>
+                        {% for u in unidades_disponiveis %}
+                            <option value="{{ u }}" {% if u == unidade_selecionada %}selected{% endif %}>{{ u }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-auto">
+                    <button type="submit" class="btn btn-secondary">Filtrar</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
     <div class="table-responsive">
       <table class="table table-striped table-hover">
         <thead>
@@ -109,8 +141,8 @@
             <td>{{ s.placa }}</td>
             <td>{{ s.descricao }}</td>
             <td>{{ s.usuario.nome if s.usuario else 'N/A' }}</td>
-            <td>{{ s.data_solicitacao.strftime('%d/%m/%Y %H:%M') }}</td>
-            <td>{{ s.data_previsao_parada.strftime('%d/%m/%Y') }}</td>
+            <td>{{ s.data_solicitacao.strftime('%d/%m/%Y %H:%M') if s.data_solicitacao else 'N/A' }}</td>
+            <td>{{ s.data_previsao_parada.strftime('%d/%m/%Y') if s.data_previsao_parada else 'N/A' }}</td>
             <td>{{ s.observacao_externa or '-' }}</td>
           </tr>
           {% else %}

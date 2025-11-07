@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Gerenciar Solicitações de Serviço{% endblock %}
+
+{% block conteudo %}
+<div class="container-fluid mt-4">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h4 class="m-0 font-weight-bold text-primary"><i class="fas fa-wrench"></i> Gerenciamento de Solicitações de Serviço</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="dataTableSolicitacoes" width="100%" cellspacing="0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Data</th>
+                            <th>Status</th>
+                            <th>Placa</th>
+                            <th>Solicitante</th>
+                            <th>Descrição do Problema</th>
+                            <th>Previsão de Parada</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ss in solicitacoes %}
+                        <tr>
+                            <td>{{ ss.id }}</td>
+                            <td>{{ ss.data_solicitacao.strftime('%d/%m/%Y %H:%M') if ss.data_solicitacao else 'N/A' }}</td>
+                            <td>
+                                {% set status_class = 'badge-secondary' %}
+                                {% if ss.status == 'Enviando...' %}
+                                    {% set status_class = 'badge-info' %}
+                                {% elif ss.status == 'Em Análise' %}
+                                    {% set status_class = 'badge-warning' %}
+                                {% elif ss.status == 'Concluída' %}
+                                    {% set status_class = 'badge-success' %}
+                                {% elif ss.status == 'Erro no Envio' %}
+                                    {% set status_class = 'badge-danger' %}
+                                {% endif %}
+                                <span class="badge {{ status_class }}">{{ ss.status }}</span>
+                            </td>
+                            <td>{{ ss.placa }}</td>
+                            <td>{{ ss.usuario.nome if ss.usuario else 'N/A' }}</td>
+                            <td>{{ ss.descricao }}</td>
+                            <td>{{ ss.data_previsao_parada.strftime('%d/%m/%Y') if ss.data_previsao_parada else 'Não definida' }}</td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" data-toggle="tooltip" title="Detalhes/Atender SS">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center font-weight-bold">Nenhuma solicitação de serviço encontrada.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }} {# <<< A FORMA CORRETA DE HERDAR SCRIPTS #}
+<script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.21/js/dataTables.bootstrap4.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Apenas inicializa o DataTable se houver dados na tabela
+    if ($('#dataTableSolicitacoes tbody tr').length > 1 || ($('#dataTableSolicitacoes tbody tr').length === 1 && $('#dataTableSolicitacoes tbody td').length > 1)) {
+        $('#dataTableSolicitacoes').DataTable({
+            "language": {
+                "url": "//cdn.datatables.net/plug-ins/1.10.21/i18n/Portuguese-Brasil.json"
+            },
+            "order": [[ 0, "desc" ]] // Ordena pela coluna ID (mais recente primeiro)
+        });
+    }
+
+    // Ativa os tooltips do Bootstrap
+    $('[data-toggle="tooltip"]').tooltip();
+});
+</script>
+{% endblock %}

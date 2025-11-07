@@ -177,7 +177,8 @@
                     <li class="page-item disabled"><a class="page-link" href="#">Anterior</a></li>
                 {% endif %}
 
-                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {# --- CORREÇÃO APLICADA AQUI --- #}
+                {% for page_num in pagination.iter_pages(l_e=1, r_e=1, l_c=2, r_c=2) %}
                     {% if page_num %}
                         {% if pagination.page == page_num %}
                             <li class="page-item active"><a class="page-link" href="#">{{ page_num }}</a></li>

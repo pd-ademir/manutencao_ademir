@@ -9,6 +9,9 @@ class BaseConfig:
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'jwt-chave-secreta-padrao')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # Chave de API para o webhook do checklist
+    CHECKLIST_API_KEY = os.environ.get('CHECKLIST_API_KEY', 'chave-padrao-de-desenvolvimento')
+
     # Pooling de conexões para desempenho
     SQLALCHEMY_POOL_SIZE = 10
     SQLALCHEMY_POOL_TIMEOUT = 30
@@ -34,9 +37,9 @@ class ProdConfig(BaseConfig):
     """
     Configuração para ambiente de produção na nuvem
     """
-    user = os.environ.get('CLOUD_DB_USER', 'ornilio')
-    senha = os.environ.get('CLOUD_DB_PASSWORD', '@Machado2025')
-    host = os.environ.get('CLOUD_DB_HOST', 'localhost')
+    user = os.environ.get('CLOUD_DB_USER', 'Ornilio_neto')
+    senha = os.environ.get('CLOUD_DB_PASSWORD', 'Senhadobanco2025#')
+    host = os.environ.get('CLOUD_DB_HOST', '34.39.255.52')
     senha_encoded = quote_plus(senha)
 
     SQLALCHEMY_DATABASE_URI = f'mysql+pymysql://{user}:{senha_encoded}@{host}/manutencao'

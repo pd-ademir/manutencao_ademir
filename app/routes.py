@@ -1020,15 +1020,23 @@ def login():
     if request.method == 'POST':
         nome_usuario = request.form.get('usuario')
         senha = request.form.get('senha')
-        usuario = Usuario.query.filter_by(usuario=nome_usuario).first()
+        usuario = Usuario.query.filter(func.lower(Usuario.usuario) == nome_usuario.lower()).first()
+
+        # --- LÓGICA DE LOGIN ATUALIZADA ---
         if usuario and usuario.verificar_senha(senha):
+            # Adiciona verificação para impedir login de usuário inativo
+            if not usuario.ativo:
+                flash('Este usuário está desativado e não pode acessar o sistema.', 'warning')
+                return redirect(url_for('main.login'))
+            
             login_user(usuario)
-            session.permanent = True  # ⏱️ ativa limite de tempo de sessão
+            session.permanent = True
             registrar_log(usuario, f"Fez login no sistema")
             flash('Login realizado com sucesso!', 'success')
             return redirect(url_for('main.index'))
         else:
             flash('Usuário ou senha inválidos.', 'danger')
+            
     return render_template('login.html', ano=datetime.now().year)
 
 
@@ -1100,24 +1108,29 @@ def adicionar_usuario():
     return redirect(url_for('main.gerenciar_usuarios'))
 
 
-@main.route('/usuarios/remover/<int:id>', methods=['POST'])
+@main.route('/usuarios/alternar_status/<int:id>', methods=['POST'])
 @login_required
 @requer_tipo('adm')
-def remover_usuario(id):
+def alternar_status_usuario(id):
     usuario = Usuario.query.get_or_404(id)
 
     if usuario.usuario.lower() == 'admin':
-        flash('O usuário "admin" não pode ser removido.', 'danger')
+        flash('O status do usuário "admin" não pode ser alterado.', 'danger')
     elif usuario.id == current_user.id:
-        flash('Você não pode remover a si mesmo.', 'danger')
+        flash('Você não pode desativar a si mesmo.', 'danger')
     else:
-        db.session.delete(usuario)
+        # Lógica para INVERTER o status do usuário
+        usuario.ativo = not usuario.ativo
         db.session.commit()
-        registrar_log(current_user, f"Removeu o usuário {usuario.nome}")
-        flash(f'Usuário {usuario.nome} removido com sucesso.', 'info')
+        
+        # Mensagens dinâmicas
+        status_texto = "reativado" if usuario.ativo else "desativado"
+        log_msg = f"{status_texto.capitalize()} o usuário {usuario.nome}"
+        registrar_log(current_user, log_msg)
+        
+        flash(f'Usuário {usuario.nome} foi {status_texto} com sucesso.', 'info')
 
     return redirect(url_for('main.gerenciar_usuarios'))
-
 
 
 @main.route("/logs")

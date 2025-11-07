@@ -1,3 +1,4 @@
+
 # app/models.py
 import re
 from .extensions import db
@@ -181,6 +182,7 @@ class Usuario(db.Model, UserMixin):
     tipo = db.Column(db.String(20), nullable=False)
     unidade = db.Column(db.String(50), nullable=True)
     filial = db.Column(db.String(50), nullable=True)
+    ativo = db.Column(db.Boolean, default=True, nullable=False)
 
     def set_senha(self, senha):
         self.senha_hash = generate_password_hash(senha)
@@ -216,6 +218,7 @@ class SolicitacaoServico(db.Model):
 
     def __repr__(self):
         return f'<SolicitacaoServico {self.id} - {self.placa}>'
+
 
 
 # ============================================================================

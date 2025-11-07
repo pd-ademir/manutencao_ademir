@@ -82,12 +82,13 @@
                             <th>Tipo</th>
                             <th>Filial</th>
                             <th>Unidade</th>
+                            <th>Status</th>
                             <th>Ação</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for u in usuarios %}
-                        <tr>
+                        <tr class="{% if not u.ativo %}table-secondary text-muted{% endif %}">
                             <td>{{ u.id }}</td>
                             <td>{{ u.nome }}</td>
                             <td>{{ u.usuario }}</td>
@@ -95,17 +96,28 @@
                             <td>{{ u.filial or '--' }}</td>
                             <td>{{ u.unidade or '--' }}</td>
                             <td>
-                                {% if u.usuario.lower() != 'admin' and u.id != current_user.id %}
-                                <form method="POST" action="{{ url_for('main.remover_usuario', id=u.id) }}" style="display: inline;">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit"
-                                            onclick="return confirm('Deseja remover o usuário {{ u.usuario }}?')"
-                                            class="btn btn-danger btn-sm" title="Remover">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
+                                {% if u.ativo %}
+                                    <span class="badge bg-success">Ativo</span>
                                 {% else %}
-                                <span class="text-muted">N/A</span>
+                                    <span class="badge bg-danger">Inativo</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if u.usuario.lower() != 'admin' and u.id != current_user.id %}
+                                    {% set action_text = 'Desativar' if u.ativo else 'Reativar' %}
+                                    {% set btn_class = 'btn-warning' if u.ativo else 'btn-success' %}
+                                    {% set icon_class = 'fa-user-slash' if u.ativo else 'fa-user-check' %}
+
+                                    <form method="POST" action="{{ url_for('main.alternar_status_usuario', id=u.id) }}" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit"
+                                                onclick="return confirm('Deseja {{ action_text.lower() }} o usuário {{ u.usuario }}?')"
+                                                class="btn {{ btn_class }} btn-sm" title="{{ action_text }}">
+                                            <i class="fas {{ icon_class }}"></i>
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
                                 {% endif %}
                             </td>
                         </tr>
