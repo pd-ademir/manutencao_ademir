@@ -58,7 +58,7 @@ def upload_placas():
     
     file = request.files['csv_file']
     try:
-        stream = io.TextIOWrapper(file.stream, encoding='utf-8-sig')
+        stream = io.TextIOWrapper(file.stream, encoding='latin-1')
         # Normaliza o cabeçalho para minúsculas e sem espaços
         header = [h.strip().lower() for h in stream.readline().split(';')]
         stream.seek(0)
@@ -142,7 +142,7 @@ def upload_motoristas():
     
     file = request.files['csv_file']
     try:
-        stream = io.TextIOWrapper(file.stream, encoding='utf-8-sig')
+        stream = io.TextIOWrapper(file.stream, encoding='latin-1')
         header = [h.strip().lower() for h in stream.readline().split(';')]
         stream.seek(0)
         csv_reader = csv.DictReader(stream, delimiter=';', fieldnames=header)
@@ -208,7 +208,7 @@ def upload_conjuntos():
 
     file = request.files['csv_file']
     try:
-        stream = io.TextIOWrapper(file.stream, encoding='utf-8-sig')
+        stream = io.TextIOWrapper(file.stream, encoding='latin-1')
         csv_reader = csv.DictReader(stream, delimiter=';')
         
         criados, atualizados, ignorados, erros = 0, 0, 0, []
