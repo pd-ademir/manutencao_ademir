@@ -18,26 +18,23 @@
                             <th>Status</th>
                             <th>Placa</th>
                             <th>Solicitante</th>
-                            <th>Descrição do Problema</th>
-                            <th>Previsão de Parada</th>
+                            <th>Descrição</th>
+                            <th>Previsão</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for ss in solicitacoes %}
-                        <tr>
+                        <tr id="ss-row-{{ ss.id }}">
                             <td>{{ ss.id }}</td>
                             <td>{{ ss.data_solicitacao.strftime('%d/%m/%Y %H:%M') if ss.data_solicitacao else 'N/A' }}</td>
                             <td>
                                 {% set status_class = 'badge-secondary' %}
-                                {% if ss.status == 'Enviando...' %}
-                                    {% set status_class = 'badge-info' %}
-                                {% elif ss.status == 'Em Análise' %}
-                                    {% set status_class = 'badge-warning' %}
-                                {% elif ss.status == 'Concluída' %}
-                                    {% set status_class = 'badge-success' %}
-                                {% elif ss.status == 'Erro no Envio' %}
-                                    {% set status_class = 'badge-danger' %}
+                                {% if ss.status == 'Enviando...' %} {% set status_class = 'badge-info' %}
+                                {% elif ss.status == 'Em Análise' or ss.status == 'Recebido via API' %} {% set status_class = 'badge-warning' %}
+                                {% elif ss.status == 'Resolvido' %} {% set status_class = 'badge-success' %}
+                                {% elif ss.status == 'Não Procede' %} {% set status_class = 'badge-dark' %}
+                                {% elif ss.status == 'Erro no Envio' %} {% set status_class = 'badge-danger' %}
                                 {% endif %}
                                 <span class="badge {{ status_class }}">{{ ss.status }}</span>
                             </td>
@@ -46,14 +43,18 @@
                             <td>{{ ss.descricao }}</td>
                             <td>{{ ss.data_previsao_parada.strftime('%d/%m/%Y') if ss.data_previsao_parada else 'Não definida' }}</td>
                             <td>
-                                <button class="btn btn-primary btn-sm" data-toggle="tooltip" title="Detalhes/Atender SS">
-                                    <i class="fas fa-edit"></i>
+                                {% if ss.status in ['Em Análise', 'Recebido via API'] %}
+                                <button class="btn btn-primary btn-sm js-finalizar-btn" 
+                                        data-ss-id="{{ ss.id }}"
+                                        title="Finalizar Solicitação">
+                                    <i class="fas fa-check-circle"></i> Ações
                                 </button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="8" class="text-center font-weight-bold">Nenhuma solicitação de serviço encontrada.</td>
+                            <td colspan="8" class="text-center font-weight-bold">Nenhuma solicitação de serviço pendente.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -62,26 +63,77 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de Finalização de SS -->
+<div class="modal fade" id="finalizarModal" tabindex="-1" role="dialog" aria-labelledby="finalizarModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="finalizarModalLabel">Finalizar Solicitação de Serviço</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="finalizarForm" method="POST" action="{{ url_for('ss.finalizar_solicitacao') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" id="modal_ss_id" name="solicitacao_id">
+                    
+                    <div class="form-group mb-3">
+                        <label for="status_final"><strong>Status Final *</strong></label>
+                        <select class="form-control" id="status_final" name="status_final" required>
+                            <option value="" disabled selected>Selecione o resultado...</option>
+                            <option value="Resolvido">✅ Resolvido</option>
+                            <option value="Não Procede">❌ Não Procede</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group mb-3">
+                        <label for="numero_os"><strong>Nº da Ordem de Serviço</strong></label>
+                        <input type="text" class="form-control" id="numero_os" name="numero_os" placeholder="(Opcional)">
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="observacao_interna"><strong>Observações Internas</strong></label>
+                        <textarea class="form-control" id="observacao_interna" name="observacao_interna" rows="3" placeholder="(Opcional) Adicione detalhes sobre a resolução..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar e Finalizar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
-{{ super() }} {# <<< A FORMA CORRETA DE HERDAR SCRIPTS #}
+{{ super() }}
 <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.21/js/dataTables.bootstrap4.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Apenas inicializa o DataTable se houver dados na tabela
-    if ($('#dataTableSolicitacoes tbody tr').length > 1 || ($('#dataTableSolicitacoes tbody tr').length === 1 && $('#dataTableSolicitacoes tbody td').length > 1)) {
-        $('#dataTableSolicitacoes').DataTable({
-            "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.10.21/i18n/Portuguese-Brasil.json"
-            },
-            "order": [[ 0, "desc" ]] // Ordena pela coluna ID (mais recente primeiro)
-        });
-    }
+    // Inicializa a tabela DataTable.
+    var table = $('#dataTableSolicitacoes').DataTable({
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.10.21/i18n/Portuguese-Brasil.json"
+        },
+        "order": [[ 0, "desc" ]]
+    });
 
-    // Ativa os tooltips do Bootstrap
-    $('[data-toggle="tooltip"]').tooltip();
+    // Anexa o listener de clique à tabela para garantir que funcione mesmo 
+    // depois da tabela ser redesenhada pelo DataTables (paginação, etc).
+    $('#dataTableSolicitacoes tbody').on('click', '.js-finalizar-btn', function() {
+        var ssId = $(this).data('ss-id');
+        var modal = $('#finalizarModal');
+        
+        // Define o valor do input escondido no modal
+        modal.find('.modal-body #modal_ss_id').val(ssId);
+
+        // Abre o modal manualmente
+        modal.modal('show');
+    });
 });
 </script>
 {% endblock %}

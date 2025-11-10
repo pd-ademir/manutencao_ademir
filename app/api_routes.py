@@ -30,9 +30,10 @@ def receive_checklist_data():
     placa_str = data.get('placa_veiculo')
     item_checklist = data.get('item_checklist')
     nome_solicitante = data.get('nome_solicitante')
+    id_externo_recebido = data.get('id_origem_checklist') # Captura o ID aqui
 
-    if not all([placa_str, item_checklist, nome_solicitante]):
-        return jsonify({'status': 'erro', 'mensagem': 'Dados incompletos. "placa_veiculo", "item_checklist" e "nome_solicitante" são obrigatórios.'}), 400
+    if not all([placa_str, item_checklist, nome_solicitante, id_externo_recebido]):
+        return jsonify({'status': 'erro', 'mensagem': 'Dados incompletos. "placa_veiculo", "item_checklist", "nome_solicitante" e "id_origem_checklist" são obrigatórios.'}), 400
 
     try:
         # 4. Busca os objetos no banco de dados
@@ -46,14 +47,16 @@ def receive_checklist_data():
 
         # 5. Cria a nova Solicitação de Serviço
         nova_ss = SolicitacaoServico(
-            veiculo_id=veiculo.id, # Associa ao Veiculo (conjunto)
+            veiculo_id=veiculo.id,
             motorista_id=motorista.id,
             item_servico=item_checklist,
             descricao=data.get('observacao_motorista', ''),
             data_solicitacao=datetime.utcnow(),
-            status='PENDENTE', # Status inicial padrão
+            status='Recebido via API', # Status mais descritivo
             origem='Checklist Externo',
-            id_origem_checklist=data.get('id_origem_checklist')
+            # --- CORREÇÃO APLICADA AQUI ---
+            # O nome do campo no modelo é 'id_externo'
+            id_externo=id_externo_recebido
         )
 
         db.session.add(nova_ss)
@@ -62,7 +65,7 @@ def receive_checklist_data():
         # 6. Registra a ação no log do sistema
         registrar_log_api(
             acao=f"SS Criada via Webhook: {item_checklist}", 
-            info_adicional=f"Placa: {placa_str}, Motorista: {nome_solicitante}, ID Externo: {data.get('id_origem_checklist')}"
+            info_adicional=f"Placa: {placa_str}, Motorista: {nome_solicitante}, ID Externo: {id_externo_recebido}"
         )
 
         return jsonify({'status': 'sucesso', 'mensagem': f'Solicitação de serviço para "{item_checklist}" da placa {placa_str} criada com sucesso.', 'ss_id': nova_ss.id}), 201

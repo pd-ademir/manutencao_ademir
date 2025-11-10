@@ -184,26 +184,23 @@ def webhook_atualizar_status():
 # --- ROTA DE GERENCIAMENTO COM FILTROS ---
 @ss_bp.route('/gerenciar')
 @login_required
-@requer_tipo("master", "comum", "adm") # Protege a rota para perfis de gestão
+@requer_tipo("master", "comum", "adm")
 def gerenciar_solicitacoes():
-    """
-    Página para o gestor de manutenção visualizar e gerenciar as SS.
-    Filtra por filial/unidade do usuário, exceto para o tipo 'master'.
-    """
     query_solicitacoes = SolicitacaoServico.query.options(joinedload(SolicitacaoServico.usuario))
+    # Exibe apenas as que estão ativas para o gerenciamento
+    query_solicitacoes = query_solicitacoes.filter(SolicitacaoServico.status.in_([
+        'Em Análise', 'Recebido via API', 'Erro no Envio'
+    ]))
 
-    # Usuários 'master' veem tudo. Outros tipos são filtrados.
-    if current_user.tipo != 'adm':
+    if current_user.tipo != 'master':
         if current_user.filial:
             placas_da_filial = [p.placa for p in Placa.query.filter_by(filial=current_user.filial).all()]
             query_solicitacoes = query_solicitacoes.filter(SolicitacaoServico.placa.in_(placas_da_filial))
-        
         if current_user.unidade:
             placas_da_unidade = [p.placa for p in Placa.query.filter_by(unidade=current_user.unidade).all()]
             query_solicitacoes = query_solicitacoes.filter(SolicitacaoServico.placa.in_(placas_da_unidade))
 
     solicitacoes = query_solicitacoes.order_by(SolicitacaoServico.data_solicitacao.desc()).all()
-    
     return render_template('gerenciar_solicitacoes.html', solicitacoes=solicitacoes)
 
 
@@ -214,8 +211,11 @@ def api_nova_ss():
     """
     Endpoint de API para criar uma nova Solicitação de Serviço a partir do sistema de Checklist.
     Requer autenticação via chave de API no cabeçalho X-API-KEY.
+    Lê o 'id_origem_checklist' e o salva como 'id_externo'.
     """
     logging.info(f"API /api/ss/nova chamada com dados: {request.get_data()}")
+
+    # Validação da chave de API
     secret_key = os.environ.get('SECRET_API_KEY')
     if not secret_key:
         logging.error("FATAL: SECRET_API_KEY não está configurada no ambiente.")
@@ -226,6 +226,7 @@ def api_nova_ss():
         logging.warning(f"API Key inválida ou ausente: {api_key}")
         return jsonify({"status": "erro", "mensagem": "Chave de API inválida ou ausente."}), 401
 
+    # Validação do corpo da requisição e dos campos
     dados = request.get_json()
     if not dados:
         logging.warning("API chamada sem corpo JSON.")
@@ -233,49 +234,52 @@ def api_nova_ss():
 
     placa_str = dados.get('placa')
     descricao_original = dados.get('descricao')
-    if not placa_str or not descricao_original:
-        return jsonify({"status": "erro", "mensagem": "'placa' e 'descricao' são obrigatórios."}), 400
+    id_origem = dados.get('id_origem_checklist') # <-- CAMPO NOVO
+
+    if not all([placa_str, descricao_original, id_origem]):
+        return jsonify({"status": "erro", "mensagem": "'placa', 'descricao' e 'id_origem_checklist' são obrigatórios."}), 400
 
     try:
+        # Busca o usuário padrão para registrar a SS
         sistema_user = Usuario.query.filter_by(nome="Sistema").first()
         if not sistema_user:
             logging.error("CRÍTICO: Usuário 'Sistema' não encontrado no banco de dados.")
             return jsonify({"status": "erro", "mensagem": "Configuração interna: Usuário 'Sistema' não encontrado."}), 500
-
-        # --- LÓGICA DE ATUALIZAÇÃO DA PLACA (CORRIGIDA) ---
-        api_filial = dados.get('unidade_solicitante') # CORRIGIDO
-        api_unidade = dados.get('operacao_solicitante') # CORRIGIDO
-
+        
+        # Lógica de atualização opcional da placa
+        api_filial = dados.get('unidade_solicitante')
+        api_unidade = dados.get('operacao_solicitante')
         placa_obj = Placa.query.filter_by(placa=placa_str).first()
         if placa_obj:
             if api_filial:
                 placa_obj.filial = api_filial
-                logging.info(f"Atualizando filial da placa {placa_str} para {api_filial}")
             if api_unidade:
                 placa_obj.unidade = api_unidade
-                logging.info(f"Atualizando unidade da placa {placa_str} para {api_unidade}")
         else:
             logging.warning(f"Placa {placa_str} recebida via API não foi encontrada no cadastro de placas.")
 
-        # Monta a descrição para a SS
+        # Monta a descrição final para a SS
         solicitante_externo = dados.get('solicitante_externo')
         descricao_final = descricao_original
         if solicitante_externo:
             info_header = f"Enviado por: {solicitante_externo}"
             if api_filial:
                 info_header += f" (Filial: {api_filial})"
-            descricao_final = f"{info_header}\n--------------------\n{descricao_original}"
+            descricao_final = f"{info_header}\\n--------------------\\n{descricao_original}"
 
+        # --- LÓGICA PRINCIPAL CORRIGIDA ---
         nova_ss = SolicitacaoServico(
-            placa=placa_str,            
+            placa=placa_str,
             descricao=descricao_final,
             usuario_id=sistema_user.id,
             status='Recebido via API',
-            data_previsao_parada=None
+            data_previsao_parada=None,
+            id_externo=str(id_origem) # <-- Salva o ID na coluna correta
         )
         db.session.add(nova_ss)
         db.session.commit()
-        logging.info(f"SS {nova_ss.id} para a placa {placa_str} criada com sucesso via API.")
+        
+        logging.info(f"SS {nova_ss.id} para a placa {placa_str} criada com sucesso via API, com ID Externo {id_origem}.")
 
         return jsonify({
             "status": "sucesso",
@@ -287,3 +291,88 @@ def api_nova_ss():
         db.session.rollback()
         logging.error(f"EXCEÇÃO INESPERADA ao criar SS via API: {e}", exc_info=True)
         return jsonify({"status": "erro", "mensagem": "Erro interno no servidor ao processar a solicitação."}), 500
+
+
+@ss_bp.route('/finalizar', methods=['POST'])
+@login_required
+@requer_tipo("master", "comum", "adm")
+def finalizar_solicitacao():
+    ss_id = request.form.get('solicitacao_id')
+    
+    # --- LINHA DE DEPURAÇÃO ---
+    print(f"--- DEBUG: Tentando finalizar a SS com o ID recebido do formulário: '{ss_id}' ---")
+    
+    status = request.form.get('status_final')
+    numero_os = request.form.get('numero_os')
+    obs_interna = request.form.get('observacao_interna')
+
+    ss = SolicitacaoServico.query.get(ss_id)
+
+    if not ss:
+        flash("Solicitação não encontrada!", "danger")
+        # --- LINHA DE DEPURAÇÃO ---
+        print(f"--- DEBUG: A busca no banco de dados com o ID '{ss_id}' não retornou resultados. ---")
+        return redirect(url_for('ss.gerenciar_solicitacoes'))
+
+    # 1. Atualiza o banco de dados local
+    ss.status = status
+    ss.numero_os = numero_os
+    ss.observacao_interna = obs_interna
+    ss.data_resposta_externa = datetime.utcnow() # Reutilizando para marcar a data de finalização
+    db.session.commit()
+
+    # 2. Envia a finalização para a API externa, se houver um ID externo
+    if ss.id_externo:
+        sucesso_api, msg_api = enviar_finalizacao_para_checklist(
+            ss.id_externo, status, numero_os, obs_interna
+        )
+        if not sucesso_api:
+            # Mesmo que a API falhe, a SS foi atualizada localmente.
+            # Apenas avisa o usuário sobre a falha na comunicação.
+            flash(f"SS #{ss_id} finalizada localmente, mas falhou ao notificar a API externa: {msg_api}", "warning")
+        else:
+            flash(f"SS #{ss_id} finalizada com sucesso e API externa notificada!", "success")
+    else:
+        flash(f"SS #{ss_id} finalizada com sucesso (sem notificação de API externa).", "success")
+
+    return redirect(url_for('ss.gerenciar_solicitacoes'))
+
+
+def enviar_finalizacao_para_checklist(ss_id_externo, status_final, numero_os, observacao):
+    url_api = os.environ.get('URL_API_FINALIZAR_CHECKLIST')
+    secret_key = os.environ.get('SECRET_API_KEY')
+
+    if not url_api:
+        logging.error("URL da API para finalizar checklist não configurada.")
+        return False, "URL da API de finalização não configurada."
+    if not secret_key:
+        logging.error("FATAL: SECRET_API_KEY não está configurada no ambiente.")
+        return False, "Chave de API para comunicação não configurada."
+
+    try:
+        payload = {
+            "id_checklist": ss_id_externo,
+            "status": status_final,  # Ex: 'Resolvido' ou 'Não Procede'
+            "numero_os": numero_os,
+            "observacao": observacao
+        }
+        headers = {
+            'Content-Type': 'application/json',
+            'X-API-KEY': secret_key  # <-- **CORREÇÃO PRINCIPAL AQUI**
+        }
+        
+        response = requests.post(url_api, json=payload, headers=headers)
+        response.raise_for_status()  # Isso vai gerar um erro para status >= 400
+        
+        # Como raise_for_status foi usado, a verificação manual do status code é redundante,
+        # mas mantemos o log para clareza.
+        logging.info(f"API Externa: SS com ID Externo {ss_id_externo} finalizada com sucesso.")
+        return True, "Finalizado com sucesso na API externa."
+
+    except requests.exceptions.RequestException as e:
+        # A resposta do erro (e.status.response) pode conter detalhes valiosos
+        msg_erro = f"Erro de comunicação com a API: {e}"
+        if e.response is not None:
+            msg_erro += f" | Status: {e.response.status_code} | Resposta: {e.response.text}"
+        logging.error(f"API Externa: Erro ao tentar finalizar SS {ss_id_externo}: {msg_erro}")
+        return False, msg_erro

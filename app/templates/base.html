@@ -99,8 +99,11 @@
   </footer>
 
   {% block scripts %}
+  <!-- PASSO 1: Inclusão do JQUERY. Essencial para DataTables, Bootstrap JS, e scripts customizados. -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- Script para controlar os menus dropdown (javascript puro, não depende de jQuery) -->
   <script>
-    // Script para controlar os menus dropdown
     document.addEventListener('DOMContentLoaded', function () {
       document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
     });
@@ -117,6 +120,7 @@
     });
   </script>
   
+  <!-- PASSO 2: Inclusão do Bootstrap Bundle, que utiliza o jQuery para funcionalidades como o Modal. -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   {% endblock %}
 </body>

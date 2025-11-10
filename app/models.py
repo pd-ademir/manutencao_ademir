@@ -211,10 +211,21 @@ class SolicitacaoServico(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     usuario = db.relationship('Usuario')
 
+    # --- RELAÇÃO ADICIONADA PARA CORRIGIR O ERRO ---
+    placa_ref = db.relationship('Placa', 
+                                foreign_keys=[placa], 
+                                primaryjoin='SolicitacaoServico.placa == Placa.placa', 
+                                backref='solicitacoes', 
+                                uselist=False)
+
     # --- CAMPOS PARA INTEGRAÇÃO ---
     id_externo = db.Column(db.String(100), nullable=True, index=True)
     observacao_externa = db.Column(db.Text, nullable=True)
     data_resposta_externa = db.Column(db.DateTime, nullable=True)
+
+    # --- NOVOS CAMPOS PARA FINALIZAÇÃO ---
+    numero_os = db.Column(db.String(50), nullable=True)
+    observacao_interna = db.Column(db.Text, nullable=True)
 
     def __repr__(self):
         return f'<SolicitacaoServico {self.id} - {self.placa}>'
@@ -283,3 +294,4 @@ def registrar_log(usuario, acao):
     )
     db.session.add(log)
     db.session.commit()
+
