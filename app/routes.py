@@ -387,6 +387,45 @@ def plano_manutencao_pdf():
 # ROTA PARA ATUALIZAÇÃO DE KM EM MASSA 
 # --------------------------------------------------------------------------
 
+@main.route('/atualizar-km/<int:placa_id>', methods=['POST'])
+@login_required
+@requer_tipo("master", "comum", 'adm')
+def atualizar_km(placa_id):
+    placa_obj = Placa.query.get_or_404(placa_id)
+    
+    # Validação de permissão
+    if not tem_permissao('editar_km_geral'):
+        unidades_usuario = [u.strip().upper() for u in (current_user.unidade or '').split(',') if u]
+        if not unidades_usuario or placa_obj.unidade not in unidades_usuario:
+            flash('Você não tem permissão para atualizar o KM desta placa.', 'danger')
+            return redirect(url_for('main.lista_placas'))
+
+    km_novo_str = request.form.get('km_atual')
+
+    if not km_novo_str or not km_novo_str.isdigit():
+        flash('Valor de KM inválido.', 'danger')
+        return redirect(url_for('main.lista_placas'))
+
+    km_novo = int(km_novo_str)
+    km_atual_db = placa_obj.km_atual or 0
+
+    if km_novo < km_atual_db:
+        flash(f'O novo KM ({format_km(km_novo)}) não pode ser menor que o atual ({format_km(km_atual_db)}).', 'warning')
+        return redirect(url_for('main.lista_placas'))
+    
+    if km_novo != km_atual_db:
+        placa_obj.km_atual = km_novo
+        placa_obj.data_ultima_atualizacao_km = datetime.now(pytz.timezone("America/Fortaleza"))
+        db.session.commit()
+        
+        registrar_log(current_user, f"Atualizou KM do veículo {placa_obj.placa} para {format_km(km_novo)}")
+        flash(f'KM da placa {placa_obj.placa} atualizado para {format_km(km_novo)} com sucesso!', 'success')
+    else:
+        flash(f'Nenhuma alteração necessária para a placa {placa_obj.placa}.', 'info')
+
+    return redirect(url_for('main.lista_placas'))
+
+
 @main.route('/atualizar-km-massa', methods=['GET', 'POST'])
 @login_required
 @requer_tipo("master", "comum",'adm')
@@ -417,7 +456,7 @@ def atualizar_km_massa():
                     flash("O arquivo CSV está vazio.", "warning")
                     return redirect(url_for('main.lista_placas'))
                 
-                dialect = csv.Sniffer().sniff(primeira_linha)
+                dialect = csv.Sniffer().sniff(primeira_linha, delimiters=',;')
                 text_stream.seek(0)
             except (csv.Error, StopIteration):
                 dialect = 'excel'
@@ -436,6 +475,10 @@ def atualizar_km_massa():
             sucessos = 0
             erros_validacao = []
             placas_nao_encontradas = []
+
+            # Filtra as placas permitidas para o usuário de uma só vez
+            query_base = filtrar_query_por_usuario(Placa.query, Placa)
+            placas_permitidas = {p.placa: p for p in query_base.all()}
 
             for row_num, row in enumerate(csv_reader, start=2):
                 if not any(field.strip() for field in row): continue 
@@ -457,12 +500,14 @@ def atualizar_km_massa():
                 
                 km_novo = int(km_novo_str)
 
-                # --- CORREÇÃO FUNDAMENTAL APLICADA AQUI ---
-                # A busca e atualização são feitas no modelo 'Placa', que contém o KM.
-                placa_obj = Placa.query.filter_by(placa=placa_csv).first()
+                placa_obj = placas_permitidas.get(placa_csv)
 
                 if not placa_obj:
-                    placas_nao_encontradas.append(placa_csv)
+                    # Verifica se a placa existe mas o usuário não tem permissão
+                    if Placa.query.filter_by(placa=placa_csv).first():
+                        erros_validacao.append(f"Linha {row_num}: Você não tem permissão para atualizar a placa {placa_csv}.")
+                    else:
+                        placas_nao_encontradas.append(placa_csv)
                     continue
                 
                 km_atual_db = placa_obj.km_atual or 0
@@ -488,7 +533,6 @@ def atualizar_km_massa():
                 if placas_nao_encontradas:
                     mensagem_erro_html += f"<li><strong>Placas não encontradas no sistema:</strong> {', '.join(sorted(list(set(placas_nao_encontradas))))}</li>"
                 mensagem_erro_html += "</ul>"
-                
                 flash(Markup(mensagem_erro_html), 'warning')
             
             if sucessos == 0 and not erros_validacao and not placas_nao_encontradas:
@@ -503,39 +547,6 @@ def atualizar_km_massa():
 
     return render_template('atualizar_km_massa.html', form=form)
 
-
-
-@main.route('/atualizar-km/<int:id>', methods=['POST'])
-@login_required
-@requer_tipo("master", "comum", 'adm')
-def atualizar_km(id):
-    # O 'id' aqui é o ID do CONJUNTO (Veiculo)
-    veiculo = Veiculo.query.get_or_404(id)
-    
-    # Verifica se o conjunto tem um cavalo associado, o que é essencial
-    if not veiculo.placa_cavalo:
-        flash(f'O conjunto {veiculo.nome_conjunto} não possui um cavalo mecânico associado. KM não pode ser atualizado.', 'danger')
-        return redirect(url_for('main.lista_placas'))
-
-    novo_km_str = request.form.get('km_atual')
-
-    if novo_km_str and novo_km_str.isdigit():
-        novo_km = int(novo_km_str)
-        
-        # --- CORREÇÃO APLICADA AQUI ---
-        # O KM é um atributo do CAVALO (Placa), não do CONJUNTO (Veiculo).
-        veiculo.placa_cavalo.km_atual = novo_km
-        veiculo.placa_cavalo.data_ultima_atualizacao_km = datetime.now(pytz.timezone("America/Fortaleza"))
-        
-        db.session.commit()
-        
-        # O log e a mensagem flash também devem usar o atributo correto.
-        registrar_log(current_user, f"Atualizou o KM do veículo {veiculo.placa_cavalo.placa} para {novo_km}")
-        flash(f'KM do veículo {veiculo.placa_cavalo.placa} atualizado para {format_km(novo_km)}', 'success')
-    else:
-        flash('KM inválido. Digite um número válido.', 'warning')
-        
-    return redirect(url_for('main.lista_placas'))
 
 
 @main.route('/cadastro-veiculo', methods=['GET', 'POST'])
