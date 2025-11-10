@@ -387,9 +387,6 @@ def plano_manutencao_pdf():
 # ROTA PARA ATUALIZAÇÃO DE KM EM MASSA 
 # --------------------------------------------------------------------------
 
-
-# Em app/routes.py, substitua a sua função atualizar_km_massa por esta:
-
 @main.route('/atualizar-km-massa', methods=['GET', 'POST'])
 @login_required
 @requer_tipo("master", "comum",'adm')
