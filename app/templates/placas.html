@@ -2,7 +2,6 @@
 
 {% block titulo %}Painel de Veículos por Unidade{% endblock %}
 
-{# PASSO 1: Adiciona o link para o novo arquivo CSS no cabeçalho #}
 {% block extra_head %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/placas.css') }}">
@@ -95,45 +94,49 @@
               </thead>
               <tbody>
                 {% for v in veiculos_unidade %}
-                  {% set cavalo = v.placa_cavalo %}
-                  {% if cavalo %}
-                    {% set vencido = (
-                      (cavalo.km_para_preventiva is not none and cavalo.km_para_preventiva < 0) or
-                      (cavalo.km_para_intermediaria is not none and cavalo.km_para_intermediaria < 0) or
-                      (cavalo.km_para_diferencial is not none and cavalo.km_para_diferencial < 0) or
-                      (cavalo.km_para_cambio is not none and cavalo.km_para_cambio < 0) or
-                      (cavalo.data_proxima_calibragem and cavalo.data_proxima_calibragem <= current_date)
-                    ) %}
-                    <tr class="{{ 'alerta' if vencido else '' }}">
-                      <td>{{ v.motorista.nome if v.motorista else '-' }}</td>
-                      <td><a href="{{ url_for('checklist.por_placa', placa=cavalo.placa) }}" class="text-decoration-none link-primary">{{ cavalo.placa }}</a></td>
-                      <td>{{ v.placa_carreta1.placa if v.placa_carreta1 else '-' }}</td>
-                      <td>{{ v.placa_carreta2.placa if v.placa_carreta2 else '-' }}</td>
-                      <td>{{ cavalo.modelo }}</td>
-                      <td>{{ cavalo.fabricante }}</td>
-                      <td>{{ cavalo.ano }}</td>
-                      <td>
-                        {% if tem_permissao('editar_km') %}
-                          <form action="{{ url_for('main.atualizar_km', id=cavalo.id) }}" method="POST" style="display: flex; gap: 6px; align-items: center;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="number" name="km_atual" value="{{ cavalo.km_atual }}" class="form-control form-control-sm" style="min-width: 120px;" required>
-                            <button type="submit" title="Atualizar KM" class="btn btn-success btn-sm py-1 px-2">✔️</button>
-                          </form>
-                        {% else %}
-                          <span class="text-muted">{{ cavalo.km_atual | format_km }}</span>
-                        {% endif %}
-                      </td>
-                      <td>{% if cavalo.km_para_preventiva is not none %}<span class="{{ 'vencida' if cavalo.km_para_preventiva < 0 }}">{{ cavalo.km_para_preventiva | format_km }}</span>{% else %}-{% endif %}</td>
-                      <td>{% if cavalo.km_para_intermediaria is not none %}<span class="{{ 'vencida' if cavalo.km_para_intermediaria < 0 }}">{{ cavalo.km_para_intermediaria | format_km }}</span>{% else %}-{% endif %}</td>
-                      <td>{% if cavalo.km_para_diferencial is not none %}<span class="{{ 'vencida' if cavalo.km_para_diferencial < 0 }}">{{ cavalo.km_para_diferencial | format_km }}</span>{% else %}-{% endif %}</td>
-                      <td>{% if cavalo.km_para_cambio is not none %}<span class="{{ 'vencida' if cavalo.km_para_cambio < 0 }}">{{ cavalo.km_para_cambio | format_km }}</span>{% else %}-{% endif %}</td>
-                      <td>
-                        {% if cavalo.data_proxima_calibragem %}
-                            <span class="{{'vencida' if cavalo.data_proxima_calibragem <= current_date}}">{{ cavalo.data_proxima_calibragem.strftime('%d/%m/%Y') }}</span>
-                        {% else %}-{% endif %}
-                      </td>
-                      <td><a href="{{ url_for('main.cadastro_veiculo', id=v.id) }}" class="btn-azul" title="Editar">✏️</a></td>
-                    </tr>
+                  {% if v.ativo %}
+                    {% set cavalo = v.placa_cavalo %}
+                    {% if cavalo %}
+                      {% set vencido = (
+                        (cavalo.km_para_preventiva is not none and cavalo.km_para_preventiva < 0) or
+                        (cavalo.km_para_intermediaria is not none and cavalo.km_para_intermediaria < 0) or
+                        (cavalo.km_para_diferencial is not none and cavalo.km_para_diferencial < 0) or
+                        (cavalo.km_para_cambio is not none and cavalo.km_para_cambio < 0) or
+                        (cavalo.data_proxima_calibragem and cavalo.data_proxima_calibragem <= current_date)
+                      ) %}
+                      <tr class="{% if vencido %}alerta{% endif %}">
+                        <td>{{ v.motorista.nome if v.motorista else '-' }}</td>
+                        <td><a href="{{ url_for('checklist.por_placa', placa=cavalo.placa) }}" class="text-decoration-none link-primary">{{ cavalo.placa }}</a></td>
+                        <td>{{ v.placa_carreta1.placa if v.placa_carreta1 else '-' }}</td>
+                        <td>{{ v.placa_carreta2.placa if v.placa_carreta2 else '-' }}</td>
+                        <td>{{ cavalo.modelo }}</td>
+                        <td>{{ cavalo.fabricante }}</td>
+                        <td>{{ cavalo.ano }}</td>
+                        <td>
+                          {% if tem_permissao('editar_km') %}
+                            <!-- ======================= AQUI ESTÁ A CORREÇÃO ======================= -->
+                            <form action="{{ url_for('main.atualizar_km', placa_id=cavalo.id) }}" method="POST" style="display: flex; gap: 6px; align-items: center;">
+                            <!-- ====================================================================== -->
+                              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                              <input type="number" name="km_atual" value="{{ cavalo.km_atual }}" class="form-control form-control-sm" style="min-width: 120px;" required>
+                              <button type="submit" title="Atualizar KM" class="btn btn-success btn-sm py-1 px-2">✔️</button>
+                            </form>
+                          {% else %}
+                            <span class="text-muted">{{ cavalo.km_atual | format_km }}</span>
+                          {% endif %}
+                        </td>
+                        <td>{% if cavalo.km_para_preventiva is not none %}<span class="{% if cavalo.km_para_preventiva < 0 %}vencida{% endif %}">{{ cavalo.km_para_preventiva | format_km }}</span>{% else %}-{% endif %}</td>
+                        <td>{% if cavalo.km_para_intermediaria is not none %}<span class="{% if cavalo.km_para_intermediaria < 0 %}vencida{% endif %}">{{ cavalo.km_para_intermediaria | format_km }}</span>{% else %}-{% endif %}</td>
+                        <td>{% if cavalo.km_para_diferencial is not none %}<span class="{% if cavalo.km_para_diferencial < 0 %}vencida{% endif %}">{{ cavalo.km_para_diferencial | format_km }}</span>{% else %}-{% endif %}</td>
+                        <td>{% if cavalo.km_para_cambio is not none %}<span class="{% if cavalo.km_para_cambio < 0 %}vencida{% endif %}">{{ cavalo.km_para_cambio | format_km }}</span>{% else %}-{% endif %}</td>
+                        <td>
+                          {% if cavalo.data_proxima_calibragem %}
+                              <span class="{% if cavalo.data_proxima_calibragem <= current_date %}vencida{% endif %}">{{ cavalo.data_proxima_calibragem.strftime('%d/%m/%Y') }}</span>
+                          {% else %}-{% endif %}
+                        </td>
+                        <td><a href="{{ url_for('main.cadastro_veiculo', id=v.id) }}" class="btn-azul" title="Editar">✏️</a></td>
+                      </tr>
+                    {% endif %}
                   {% endif %}
                 {% endfor %}
               </tbody>
@@ -146,20 +149,16 @@
     {% endif %}
 </div>
 
-{# PASSO 2: Removemos o bloco <style> daqui #}
-
 {% endblock %}
 
 
 {% block scripts %}
   {{ super() }}
 
-  {# PASSO 3: Adicionando os dados para o JS de forma segura #}
   <script type="application/json" id="filial-unidade-map-data">{{ filial_unidade_map|tojson|safe }}</script>
   <script type="application/json" id="todas-unidades-data">{{ todas_unidades_json|tojson|safe }}</script>
   <script type="text/plain" id="unidade-selecionada-data">{{ unidade_selecionada }}</script>
   <script type="text/plain" id="filial-selecionada-data">{{ filial_selecionada }}</script>
 
-  {# PASSO 4: Adicionando o link para o novo arquivo JavaScript #}
   <script src="{{ url_for('static', filename='js/placas_filtros.js') }}"></script>
 {% endblock %}
