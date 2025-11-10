@@ -833,7 +833,7 @@ def excluir_veiculo(id):
 
 
 
-# Em app/routes.py
+# Em app/routes.py, substitua a função inteira por esta:
 
 @main.route('/placas')
 @login_required
@@ -842,80 +842,78 @@ def lista_placas():
     filial_filtro = request.args.get('filial', '').upper()
     unidade_filtro = request.args.get('unidade', '').upper()
 
-    # 2. Query base com filtro de permissão do usuário
-    query = filtrar_query_por_usuario(Veiculo.query, Veiculo)
+    # 2. Query base com filtro de permissão e joins necessários
+    #    Aderimos à Placa desde o início para usar como fonte de verdade.
+    query = filtrar_query_por_usuario(Veiculo.query, Veiculo).join(
+        Veiculo.placa_cavalo
+    ).options(
+        joinedload(Veiculo.placa_cavalo),
+        joinedload(Veiculo.placa_carreta1),
+        joinedload(Veiculo.placa_carreta2),
+        joinedload(Veiculo.motorista)
+    )
     
-    # --- CORREÇÃO APLICADA AQUI ---
-    # Garante que apenas veículos ativos sejam exibidos no painel.
+    # Garante que apenas veículos ativos sejam exibidos.
     query = query.filter(Veiculo.ativo == True)
 
-    # 3. Aplica os filtros de filial e unidade, se existirem
+    # 3. Aplica os filtros USANDO A FONTE DE VERDADE (Placa)
     if filial_filtro:
-        query = query.filter(Veiculo.filial == filial_filtro)
+        query = query.filter(Placa.filial == filial_filtro)
     if unidade_filtro:
-        query = query.filter(Veiculo.unidade == unidade_filtro)
+        query = query.filter(Placa.unidade == unidade_filtro)
 
-    # 4. Executa a query e agrupa os veículos por unidade para exibição
-    veiculos_filtrados = query.order_by(Veiculo.unidade, Veiculo.nome_conjunto).all()
+    # 4. Executa a query e agrupa os veículos por unidade (da Placa)
+    veiculos_filtrados = query.order_by(Placa.unidade, Veiculo.nome_conjunto).all()
     unidades_agrupadas = defaultdict(list)
     for v in veiculos_filtrados:
-        if v.unidade:
-            unidades_agrupadas[v.unidade.upper()].append(v)
+        # Agrupa pela unidade do cavalo, que é a nossa fonte de verdade.
+        if v.placa_cavalo and v.placa_cavalo.unidade:
+            unidades_agrupadas[v.placa_cavalo.unidade.upper()].append(v)
 
-    # 5. Lógica para popular os menus de filtro dinamicamente
+    # 5. Lógica para popular os menus de filtro (baseada na Placa, que agora está consistente)
     filiais_disponiveis = []
     unidades_para_filtro = []
     filial_unidade_map = {}
     todas_as_unidades_gerais = []
 
-    if current_user.tipo == 'adm':
-        # Pega todas as filiais e unidades únicas para criar os filtros
-        pares_filial_unidade = db.session.query(Placa.filial, Placa.unidade).distinct().all()
+    if current_user.tipo in ['adm', 'master']:
+        # Busca todas as combinações únicas de filial/unidade da tabela Placa
+        pares_filial_unidade = db.session.query(Placa.filial, Placa.unidade).distinct().filter(Placa.unidade != None, Placa.unidade != '').all()
         
         filiais_set = set()
         unidades_set = set()
 
         for filial, unidade in pares_filial_unidade:
+            unidades_set.add(unidade) # Adiciona a unidade à lista de todas as unidades
             if filial:
                 filiais_set.add(filial)
-                if unidade:
-                    unidades_set.add(unidade)
-                    if filial not in filial_unidade_map:
-                        filial_unidade_map[filial] = []
-                    if unidade not in filial_unidade_map[filial]:
-                        filial_unidade_map[filial].append(unidade)
+                if filial not in filial_unidade_map:
+                    filial_unidade_map[filial] = []
+                filial_unidade_map[filial].append(unidade)
 
         filiais_disponiveis = sorted(list(filiais_set))
         todas_as_unidades_gerais = sorted(list(unidades_set))
         
-        # Ordena as unidades dentro do mapa
-        for filial in filial_unidade_map:
-            filial_unidade_map[filial].sort()
+        for f in filial_unidade_map:
+            filial_unidade_map[f].sort()
 
-        # Define a lista de unidades a ser exibida no filtro
         if filial_filtro:
             unidades_para_filtro = filial_unidade_map.get(filial_filtro, [])
         else:
             unidades_para_filtro = todas_as_unidades_gerais
     
-    # Para outros tipos de usuário, se necessário (ex: master geral)
-    elif current_user.tipo == 'master' and not current_user.unidade:
-        unidades_db = filtrar_query_por_usuario(db.session.query(Veiculo.unidade).distinct(), Veiculo)
-        unidades_para_filtro = sorted([u[0] for u in unidades_db if u[0]])
-
-
     return render_template(
         'placas.html', 
         unidades=unidades_agrupadas, 
         current_date=date.today(),
-        # Itens para os filtros
         filiais_disponiveis=filiais_disponiveis,
         unidades_para_filtro=unidades_para_filtro,
-        todas_unidades_json=todas_as_unidades_gerais, # Para o JS
+        todas_unidades_json=todas_as_unidades_gerais, 
         filial_selecionada=filial_filtro,
         unidade_selecionada=unidade_filtro,
-        filial_unidade_map=filial_unidade_map # Mapa para o JS
+        filial_unidade_map=filial_unidade_map
     )
+
 
 
 

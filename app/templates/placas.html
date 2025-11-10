@@ -51,12 +51,19 @@
                         </select>
                     </div>
                     {% endif %}
+                    
+                    <!-- ===================== INÍCIO DA CORREÇÃO NO HTML ===================== -->
                     <div class="col-md-4">
                         <label for="unidade_filtro" class="form-label">Filtrar por Unidade</label>
                         <select name="unidade" id="unidade_filtro" class="form-select">
-                            {# Este dropdown será populado pelo JavaScript #}
+                            <option value="">Todas as Unidades</option>
+                            {% for u in unidades_para_filtro %}
+                                <option value="{{ u }}" {% if u == unidade_selecionada %}selected{% endif %}>{{ u }}</option>
+                            {% endfor %}
                         </select>
                     </div>
+                    <!-- ====================== FIM DA CORREÇÃO NO HTML ====================== -->
+
                     <div class="col-md-4 d-flex align-items-end">
                         <button type="submit" class="btn btn-info me-2">Aplicar Filtro</button>
                         <a href="{{ url_for('main.lista_placas') }}" class="btn btn-secondary">Limpar</a>
@@ -114,9 +121,7 @@
                         <td>{{ cavalo.ano }}</td>
                         <td>
                           {% if tem_permissao('editar_km') %}
-                            <!-- ======================= AQUI ESTÁ A CORREÇÃO ======================= -->
                             <form action="{{ url_for('main.atualizar_km', placa_id=cavalo.id) }}" method="POST" style="display: flex; gap: 6px; align-items: center;">
-                            <!-- ====================================================================== -->
                               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                               <input type="number" name="km_atual" value="{{ cavalo.km_atual }}" class="form-control form-control-sm" style="min-width: 120px;" required>
                               <button type="submit" title="Atualizar KM" class="btn btn-success btn-sm py-1 px-2">✔️</button>
