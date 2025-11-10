@@ -1,8 +1,10 @@
-
 import os
+import logging
 from flask import Flask
 from urllib.parse import quote_plus
 from dotenv import load_dotenv
+import logging
+from logging.handlers import RotatingFileHandler
 
 from .models import Usuario
 from .extensions import db, migrate, login_manager, csrf
@@ -10,7 +12,7 @@ from .utils import format_km
 from .checklist import checklist_bp
 from .mass_update_routes import mass_update_bp
 
-# Carrega variáveis do .env (se existir)
+# Carrega variáveis do .env
 load_dotenv()
 
 @login_manager.user_loader
@@ -19,35 +21,24 @@ def load_user(user_id):
 
 def create_app():
     app = Flask(__name__)
-    
-    # --- INÍCIO DA ALTERAÇÃO ---
-    
+
     # Caminho base do projeto
     basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-    
+
+    # Configurações principais
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'sua-chave-super-secreta')
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'jwt-chave-secreta-padrao')
 
-    # Verifica se está rodando local ou no cloud
-    ambiente = os.environ.get('AMBIENTE', 'local')  # Alterado para 'local' como padrão para facilitar testes
+    ambiente = os.environ.get('AMBIENTE', 'local')
 
-    print(f"Ambiente: {ambiente}")
-
+    # Configuração de banco de dados
     if ambiente == 'local':
-        # --- CONFIGURAÇÃO PARA SQLITE (TESTES LOCAIS) ---
         db_path = os.path.join(basedir, 'instance', 'local_test.db')
-        # Garante que o diretório 'instance' exista
         os.makedirs(os.path.join(basedir, 'instance'), exist_ok=True)
-        
         db_uri = f'sqlite:///{db_path}'
-        print(f"Database URI usada (SQLite): {db_uri}")
-        
         app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
-        # Para SQLite, não precisamos de 'binds' complexos para testes simples
         app.config['SQLALCHEMY_BINDS'] = {}
-
     else:
-        # --- CONFIGURAÇÃO PARA MYSQL (PRODUÇÃO/CLOUD) ---
         user = os.environ.get('CLOUD_DB_USER', 'Ornilio_neto')
         senha = os.environ.get('CLOUD_DB_PASSWORD', 'Senhadobanco2025#')
         host = os.environ.get('CLOUD_DB_HOST', '34.39.255.52')
@@ -57,48 +48,57 @@ def create_app():
         pneus_uri = f'mysql+pymysql://{user}:{senha_encoded}@{host}/pneus'
         checklist_uri = f'mysql+pymysql://{user}:{senha_encoded}@{host}/checklist'
 
-        print(f"Database URI usada (MySQL): {db_uri}")
         app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
         app.config['SQLALCHEMY_BINDS'] = {
             'pneus': pneus_uri,
             'checklist': checklist_uri
         }
 
-    # --- FIM DA ALTERAÇÃO ---
-        
+    # Configurações adicionais do SQLAlchemy
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_POOL_SIZE'] = 10
     app.config['SQLALCHEMY_POOL_TIMEOUT'] = 30
     app.config['SQLALCHEMY_POOL_RECYCLE'] = 1800
     app.config['SQLALCHEMY_MAX_OVERFLOW'] = 20
 
+    # Inicializa extensões
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = "main.login"
     csrf.init_app(app)
 
+    # Filtros e variáveis globais do Jinja
     app.jinja_env.filters['format_km'] = format_km
-
-    # CORREÇÃO AQUI
-    from .permissoes import tem_permissao 
+    from .permissoes import tem_permissao
     app.jinja_env.globals['tem_permissao'] = tem_permissao
 
-    # Registra os blueprints existentes
+    # Registro de blueprints
     from .routes import main
     app.register_blueprint(main)
     app.register_blueprint(checklist_bp, url_prefix='/checklist')
-
     from .veiculos_routes import veiculos_bp
     app.register_blueprint(veiculos_bp, url_prefix='/gerenciamento')
-
-    # --- INÍCIO DA ADIÇÃO ---
     from .motorista_routes import motoristas_bp
     app.register_blueprint(motoristas_bp)
     app.register_blueprint(mass_update_bp)
-    # --- FIM DA ADIção ---
-    
     from .ss_routes import ss_bp
     app.register_blueprint(ss_bp)
+
+    # Configuração de logging
+    log_dir = os.path.join(basedir, 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    file_handler = logging.handlers.RotatingFileHandler(
+        os.path.join(log_dir, 'app.log'),
+        maxBytes=10240,
+        backupCount=5
+    )
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.INFO)
+    app.logger.info('Aplicação Flask iniciada')
 
     return app
