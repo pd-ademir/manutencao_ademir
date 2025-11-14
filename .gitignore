@@ -36,3 +36,5 @@ Thumbs.db
 .env.local
 .env.prod
 .env 
+
+logs/app.log

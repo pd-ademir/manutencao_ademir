@@ -32,7 +32,7 @@ def enviar_para_outra_app(dados):
         payload = {
             'placa': dados.get('placa'),
             'descricao': dados.get('descricao'),
-            'solicitante': dados.get('solicitante'), 
+            'id_solicitante': dados.get('id_solicitante'),
             'id_externo': dados.get('id_local')
         }
         
@@ -78,7 +78,7 @@ def solicitar_servico():
             'id_local': nova_ss.id,
             'placa': nova_ss.placa,
             'descricao': nova_ss.descricao,
-            'solicitante': current_user.nome
+            'id_solicitante': current_user.id
         }
         resultado_api = enviar_para_outra_app(dados_para_api)
 
