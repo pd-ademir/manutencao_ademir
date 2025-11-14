@@ -88,7 +88,9 @@ def create_app():
     # Configuração de logging
     log_dir = os.path.join(basedir, 'logs')
     os.makedirs(log_dir, exist_ok=True)
-    file_handler = logging.handlers.RotatingFileHandler(
+
+    # Handler para INFO e acima
+    file_handler = RotatingFileHandler(
         os.path.join(log_dir, 'app.log'),
         maxBytes=10240,
         backupCount=5
@@ -98,6 +100,19 @@ def create_app():
         '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
     ))
     app.logger.addHandler(file_handler)
+
+    # Handler específico para erros
+    error_handler = RotatingFileHandler(
+        os.path.join(log_dir, 'error.log'),
+        maxBytes=10240,
+        backupCount=5
+    )
+    error_handler.setLevel(logging.ERROR)
+    error_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    app.logger.addHandler(error_handler)
+
     app.logger.setLevel(logging.INFO)
     app.logger.info('Aplicação Flask iniciada')
 
