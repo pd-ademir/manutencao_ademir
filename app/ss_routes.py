@@ -173,7 +173,8 @@ def gerenciar_solicitacoes():
         'Em Análise', 'Recebido via API', 'Erro no Envio'
     ]))
 
-    if current_user.tipo != 'master':
+    # Apenas o 'adm' pode ver tudo. 'master' e 'comum' têm a visão restrita.
+    if current_user.tipo != 'adm':
         if current_user.filial:
             placas_da_filial = [p.placa for p in Placa.query.filter_by(filial=current_user.filial).all()]
             query_solicitacoes = query_solicitacoes.filter(SolicitacaoServico.placa.in_(placas_da_filial))
@@ -346,3 +347,66 @@ def enviar_finalizacao_para_checklist(ss_id_externo, status_final, numero_os, ob
             msg_erro += f" | Status: {e.response.status_code} | Resposta: {e.response.text}"
         logging.error(f"API Externa: Erro ao tentar finalizar SS {ss_id_externo}: {msg_erro}")
         return False, msg_erro
+
+
+@ss_bp.route('/finalizar_massa', methods=['POST'])
+@login_required
+@requer_tipo("adm")
+def finalizar_solicitacao_massa():
+    ss_ids = request.form.getlist('solicitacao_ids[]')
+    status = request.form.get('status_final_massa')
+    numero_os = request.form.get('numero_os_massa')
+    obs_interna = request.form.get('observacao_interna_massa')
+
+    if not ss_ids:
+        flash("Nenhuma solicitação selecionada.", "warning")
+        return redirect(url_for('ss.gerenciar_solicitacoes'))
+
+    sucessos_locais = 0
+    erros_locais = 0
+    sucessos_api = 0
+    erros_api = 0
+    
+    solicitacoes_para_processar = SolicitacaoServico.query.filter(SolicitacaoServico.id.in_(ss_ids)).all()
+
+    for ss in solicitacoes_para_processar:
+        try:
+            ss.status = status
+            ss.numero_os = numero_os
+            ss.observacao_interna = obs_interna
+            ss.data_resposta_externa = datetime.utcnow()
+            
+            if ss.id_externo:
+                sucesso_api, msg_api = enviar_finalizacao_para_checklist(
+                    ss.id_externo, status, numero_os, obs_interna
+                )
+                if sucesso_api:
+                    sucessos_api += 1
+                else:
+                    erros_api += 1
+                    logging.warning(f"Falha ao notificar API para SS #{ss.id}: {msg_api}")
+            
+            sucessos_locais += 1
+
+        except Exception as e:
+            erros_locais += 1
+            logging.error(f"Erro ao finalizar SS #{ss.id} localmente: {e}")
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Ocorreu um erro crítico ao salvar as alterações no banco de dados: {e}", "danger")
+        return redirect(url_for('ss.gerenciar_solicitacoes'))
+
+    # Mensagens de resumo
+    if sucessos_locais > 0:
+        flash(f"{sucessos_locais} solicitações foram finalizadas com sucesso localmente.", "success")
+    if erros_locais > 0:
+        flash(f"{erros_locais} solicitações falharam ao serem finalizadas localmente.", "danger")
+    if sucessos_api > 0:
+        flash(f"{sucessos_api} notificações para a API externa foram bem-sucedidas.", "info")
+    if erros_api > 0:
+        flash(f"{erros_api} notificações para a API externa falharam. Verifique os logs.", "warning")
+
+    return redirect(url_for('ss.gerenciar_solicitacoes'))

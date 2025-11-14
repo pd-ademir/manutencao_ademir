@@ -5,74 +5,93 @@
 {% block conteudo %}
 <div class="container-fluid mt-4">
     <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h4 class="m-0 font-weight-bold text-primary"><i class="fas fa-wrench"></i> Gerenciamento de Solicitações de Serviço</h4>
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h4 class="m-0 font-weight-bold text-primary"><i class="fas fa-wrench"></i> Gerenciamento de Solicitações</h4>
+            {% if current_user.tipo == 'adm' %}
+            <button id="btn-finalizar-massa" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#finalizarMassaModal" disabled>
+                <i class="fas fa-check-double"></i> Finalizar Selecionadas em Massa
+            </button>
+            {% endif %}
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="dataTableSolicitacoes" width="100%" cellspacing="0">
-                    <thead class="thead-light">
-                        <tr>
-                            <th>ID</th>
-                            <th>Data</th>
-                            <th>Status</th>
-                            <th>Placa</th>
-                            <th>Solicitante</th>
-                            <th>Descrição</th>
-                            <th>Previsão</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for ss in solicitacoes %}
-                        <tr id="ss-row-{{ ss.id }}">
-                            <td>{{ ss.id }}</td>
-                            <td>{{ ss.data_solicitacao.strftime('%d/%m/%Y %H:%M') if ss.data_solicitacao else 'N/A' }}</td>
-                            <td>
-                                {% set status_class = 'badge-secondary' %}
-                                {% if ss.status == 'Enviando...' %} {% set status_class = 'badge-info' %}
-                                {% elif ss.status == 'Em Análise' or ss.status == 'Recebido via API' %} {% set status_class = 'badge-warning' %}
-                                {% elif ss.status == 'Resolvido' %} {% set status_class = 'badge-success' %}
-                                {% elif ss.status == 'Não Procede' %} {% set status_class = 'badge-dark' %}
-                                {% elif ss.status == 'Erro no Envio' %} {% set status_class = 'badge-danger' %}
+                <form id="form-finalizar-massa" action="{{ url_for('ss.finalizar_solicitacao_massa') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <table class="table table-bordered table-hover" id="dataTableSolicitacoes" width="100%" cellspacing="0">
+                        <thead class="thead-light">
+                            <tr>
+                                {% if current_user.tipo == 'adm' %}
+                                <th class="text-center" style="width: 20px;">
+                                    <input type="checkbox" id="selecionar-todos">
+                                </th>
                                 {% endif %}
-                                <span class="badge {{ status_class }}">{{ ss.status }}</span>
-                            </td>
-                            <td>{{ ss.placa }}</td>
-                            <td>{{ ss.usuario.nome if ss.usuario else 'N/A' }}</td>
-                            <td>{{ ss.descricao }}</td>
-                            <td>{{ ss.data_previsao_parada.strftime('%d/%m/%Y') if ss.data_previsao_parada else 'Não definida' }}</td>
-                            <td>
-                                {% if ss.status in ['Em Análise', 'Recebido via API'] %}
-                                <button class="btn btn-primary btn-sm js-finalizar-btn" 
-                                        data-ss-id="{{ ss.id }}"
-                                        title="Finalizar Solicitação">
-                                    <i class="fas fa-check-circle"></i> Ações
-                                </button>
+                                <th>ID</th>
+                                <th>Data</th>
+                                <th>Status</th>
+                                <th>Placa</th>
+                                <th>Solicitante</th>
+                                <th>Descrição</th>
+                                <th>Previsão</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ss in solicitacoes %}
+                            <tr id="ss-row-{{ ss.id }}">
+                                {% if current_user.tipo == 'adm' %}
+                                <td class="text-center">
+                                    <input type="checkbox" class="ss-checkbox" name="solicitacao_ids[]" value="{{ ss.id }}">
+                                </td>
                                 {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="8" class="text-center font-weight-bold">Nenhuma solicitação de serviço pendente.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                <td>{{ ss.id }}</td>
+                                <td>{{ ss.data_solicitacao.strftime('%d/%m/%Y %H:%M') if ss.data_solicitacao else 'N/A' }}</td>
+                                <td>
+                                    {% set status_class = 'badge-secondary' %}
+                                    {% if ss.status == 'Enviando...' %} {% set status_class = 'badge-info' %}
+                                    {% elif ss.status == 'Em Análise' or ss.status == 'Recebido via API' %} {% set status_class = 'badge-warning' %}
+                                    {% elif ss.status == 'Resolvido' %} {% set status_class = 'badge-success' %}
+                                    {% elif ss.status == 'Não Procede' %} {% set status_class = 'badge-dark' %}
+                                    {% elif ss.status == 'Erro no Envio' %} {% set status_class = 'badge-danger' %}
+                                    {% endif %}
+                                    <span class="badge {{ status_class }}">{{ ss.status }}</span>
+                                </td>
+                                <td>{{ ss.placa }}</td>
+                                <td>{{ ss.usuario.nome if ss.usuario else 'N/A' }}</td>
+                                <td>{{ ss.descricao }}</td>
+                                <td>{{ ss.data_previsao_parada.strftime('%d/%m/%Y') if ss.data_previsao_parada else 'Não definida' }}</td>
+                                <td>
+                                    {% if ss.status in ['Em Análise', 'Recebido via API'] %}
+                                    <button class="btn btn-primary btn-sm js-finalizar-btn" 
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#finalizarModal"
+                                            data-ss-id="{{ ss.id }}"
+                                            title="Finalizar Solicitação">
+                                        <i class="fas fa-check-circle"></i> Ações
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="{{ 9 if current_user.tipo == 'adm' else 8 }}" class="text-center font-weight-bold">Nenhuma solicitação de serviço pendente.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal de Finalização de SS -->
+<!-- Modal de Finalização Individual -->
 <div class="modal fade" id="finalizarModal" tabindex="-1" role="dialog" aria-labelledby="finalizarModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="finalizarModalLabel">Finalizar Solicitação de Serviço</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="finalizarForm" method="POST" action="{{ url_for('ss.finalizar_solicitacao') }}">
                 <div class="modal-body">
@@ -99,13 +118,53 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary">Salvar e Finalizar</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<!-- Modal de Finalização em Massa -->
+{% if current_user.tipo == 'adm' %}
+<div class="modal fade" id="finalizarMassaModal" tabindex="-1" role="dialog" aria-labelledby="finalizarMassaModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="finalizarMassaModalLabel">Finalizar Solicitações em Massa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Você está prestes a finalizar <strong id="contador-selecionados">0</strong> solicitação(ões) com as mesmas informações.</p>
+                
+                <div class="form-group mb-3">
+                    <label for="status_final_massa"><strong>Status Final para Todos *</strong></label>
+                    <select class="form-control" id="status_final_massa" name="status_final_massa" required form="form-finalizar-massa">
+                        <option value="" disabled selected>Selecione o resultado...</option>
+                        <option value="Resolvido">✅ Resolvido</option>
+                        <option value="Não Procede">❌ Não Procede</option>
+                    </select>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="numero_os_massa"><strong>Nº da Ordem de Serviço</strong></label>
+                    <input type="text" class="form-control" id="numero_os_massa" name="numero_os_massa" placeholder="(Opcional)" form="form-finalizar-massa">
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="observacao_interna_massa"><strong>Observações Internas</strong></label>
+                    <textarea class="form-control" id="observacao_interna_massa" name="observacao_interna_massa" rows="3" placeholder="(Opcional) Esta observação será aplicada a todos." form="form-finalizar-massa"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="btn-confirmar-massa" class="btn btn-success">Confirmar e Finalizar em Massa</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -119,21 +178,68 @@ $(document).ready(function() {
         "language": {
             "url": "//cdn.datatables.net/plug-ins/1.10.21/i18n/Portuguese-Brasil.json"
         },
-        "order": [[ 0, "desc" ]]
+        "order": [[ 1, "desc" ]], // Ordenar pela coluna ID
+        "columnDefs": [
+            {% if current_user.tipo == 'adm' %}
+            { "orderable": false, "targets": 0 } // Desabilitar ordenação na coluna de checkbox
+            {% endif %}
+        ]
     });
 
-    // Anexa o listener de clique à tabela para garantir que funcione mesmo 
-    // depois da tabela ser redesenhada pelo DataTables (paginação, etc).
+    // Listener para o modal de finalização individual
     $('#dataTableSolicitacoes tbody').on('click', '.js-finalizar-btn', function() {
         var ssId = $(this).data('ss-id');
-        var modal = $('#finalizarModal');
-        
-        // Define o valor do input escondido no modal
-        modal.find('.modal-body #modal_ss_id').val(ssId);
-
-        // Abre o modal manualmente
-        modal.modal('show');
+        $('#modal_ss_id').val(ssId);
     });
+
+    // Lógica para finalização em massa (apenas para ADM)
+    {% if current_user.tipo == 'adm' %}
+    function atualizarContadorEBotao() {
+        var selecionados = $('.ss-checkbox:checked').length;
+        $('#contador-selecionados').text(selecionados);
+        
+        if (selecionados > 0) {
+            $('#btn-finalizar-massa').prop('disabled', false);
+        } else {
+            $('#btn-finalizar-massa').prop('disabled', true);
+        }
+    }
+
+    // Checkbox "Selecionar Todos"
+    $('#selecionar-todos').on('click', function() {
+        var rows = table.rows({ 'search': 'applied' }).nodes();
+        $('input[type="checkbox"]', rows).prop('checked', this.checked);
+        atualizarContadorEBotao();
+    });
+
+    // Checkboxes individuais
+    $('#dataTableSolicitacoes tbody').on('change', 'input[type="checkbox"]', function() {
+        if (!this.checked) {
+            var el = $('#selecionar-todos').get(0);
+            if (el && el.checked && ('indeterminate' in el)) {
+                el.indeterminate = true;
+            }
+        }
+        atualizarContadorEBotao();
+    });
+
+    // Atualiza o contador quando o modal de massa é aberto
+    $('#finalizarMassaModal').on('show.bs.modal', function() {
+        atualizarContadorEBotao();
+    });
+
+    // Handler para o botão de submissão final do modal de massa
+    $('#btn-confirmar-massa').on('click', function() {
+        // Validação manual, já que o botão não é 'submit'
+        if (!$('#status_final_massa').val()) {
+            alert('Por favor, selecione um status final.');
+            $('#status_final_massa').focus();
+            return; // Para a execução
+        }
+        // Envia o formulário que contém os checkboxes
+        $('#form-finalizar-massa').submit();
+    });
+    {% endif %}
 });
 </script>
 {% endblock %}
