@@ -29,11 +29,12 @@ def enviar_para_outra_app(dados):
         return None
 
     try:
+        # Payload corrigido para corresponder ao que o sistema de Checklist espera
         payload = {
             'placa': dados.get('placa'),
             'descricao': dados.get('descricao'),
-            'id_solicitante': dados.get('id_solicitante'),
-            'id_externo': dados.get('id_local')
+            'solicitante_externo': dados.get('solicitante_externo'),
+            'id_origem_checklist': dados.get('id_local') # Enviando o ID local como 'id_origem_checklist'
         }
         
         logging.info(f"Enviando para Checklist ({ambiente}): URL={url_api_checklist} Payload={payload}")
@@ -44,7 +45,7 @@ def enviar_para_outra_app(dados):
     except requests.exceptions.RequestException as e:
         logging.error(f"Erro ao enviar dados para a API do Checklist: {e}")
         return None
-# Corecao no nome dos campos
+
 
 @ss_bp.route('/solicitar', methods=['GET', 'POST'])
 @login_required
@@ -74,16 +75,17 @@ def solicitar_servico():
         db.session.add(nova_ss)
         db.session.commit()
 
+        # Enviando o nome do usuário como 'solicitante_externo'
         dados_para_api = {
             'id_local': nova_ss.id,
             'placa': nova_ss.placa,
             'descricao': nova_ss.descricao,
-            'id_solicitante': current_user.id
+            'solicitante_externo': current_user.nome 
         }
         resultado_api = enviar_para_outra_app(dados_para_api)
 
-        if resultado_api and resultado_api.get('status') == 'sucesso' and 'id_interno' in resultado_api:
-            nova_ss.id_externo = str(resultado_api['id_interno'])
+        if resultado_api and resultado_api.get('status') == 'sucesso' and 'id_solicitacao' in resultado_api:
+            nova_ss.id_externo = str(resultado_api['id_solicitacao'])
             nova_ss.status = 'Em Análise'
             flash('Solicitação de serviço enviada e registrada com sucesso no sistema de checklist!', 'success')
         else:
@@ -107,7 +109,6 @@ def solicitar_servico():
             query_placas = query_placas.filter(Placa.filial == current_user.filial)
             query_solicitacoes = query_solicitacoes.join(Placa, SolicitacaoServico.placa == Placa.placa).filter(Placa.filial == current_user.filial)
         if current_user.unidade:
-            # Adiciona join apenas se não foi feito
             if not current_user.filial:
                 query_solicitacoes = query_solicitacoes.join(Placa, SolicitacaoServico.placa == Placa.placa)
             query_placas = query_placas.filter(Placa.unidade == current_user.unidade)
@@ -117,7 +118,7 @@ def solicitar_servico():
             query_placas = query_placas.filter(Placa.filial == filial_filtro)
             query_solicitacoes = query_solicitacoes.join(Placa, SolicitacaoServico.placa == Placa.placa).filter(Placa.filial == filial_filtro)
         if unidade_filtro:
-             if not filial_filtro: # Adiciona join apenas se não foi feito
+             if not filial_filtro:
                 query_solicitacoes = query_solicitacoes.join(Placa, SolicitacaoServico.placa == Placa.placa)
              query_placas = query_placas.filter(Placa.unidade == unidade_filtro)
              query_solicitacoes = query_solicitacoes.filter(Placa.unidade == unidade_filtro)
@@ -168,7 +169,6 @@ def webhook_atualizar_status():
 @requer_tipo("master", "comum", "adm")
 def gerenciar_solicitacoes():
     query_solicitacoes = SolicitacaoServico.query.options(joinedload(SolicitacaoServico.usuario))
-    # Exibe apenas as que estão ativas para o gerenciamento
     query_solicitacoes = query_solicitacoes.filter(SolicitacaoServico.status.in_([
         'Em Análise', 'Recebido via API', 'Erro no Envio'
     ]))
@@ -188,14 +188,9 @@ def gerenciar_solicitacoes():
 @ss_bp.route('/api/ss/nova', methods=['POST'])
 @csrf.exempt
 def api_nova_ss():
-    """
-    Endpoint de API para criar uma nova Solicitação de Serviço a partir do sistema de Checklist.
-    Requer autenticação via chave de API no cabeçalho X-API-KEY.
-    Lê o 'id_origem_checklist' e o salva como 'id_externo'.
-    """
-    logging.info(f"API /api/ss/nova chamada com dados: {request.get_data()}")
+    # Logando o corpo e os cabeçalhos da requisição
+    logging.info(f"API /api/ss/nova chamada. Headers: {request.headers}, Body: {request.get_data(as_text=True)}")
 
-    # Validação da chave de API
     secret_key = os.environ.get('SECRET_API_KEY')
     if not secret_key:
         logging.error("FATAL: SECRET_API_KEY não está configurada no ambiente.")
@@ -206,7 +201,6 @@ def api_nova_ss():
         logging.warning(f"API Key inválida ou ausente: {api_key}")
         return jsonify({"status": "erro", "mensagem": "Chave de API inválida ou ausente."}), 401
 
-    # Validação do corpo da requisição e dos campos
     dados = request.get_json()
     if not dados:
         logging.warning("API chamada sem corpo JSON.")
@@ -214,52 +208,55 @@ def api_nova_ss():
 
     placa_str = dados.get('placa')
     descricao_original = dados.get('descricao')
-    id_origem = dados.get('id_origem_checklist') # <-- CAMPO NOVO
+    id_origem = dados.get('id_origem_checklist')
 
     if not all([placa_str, descricao_original, id_origem]):
         return jsonify({"status": "erro", "mensagem": "'placa', 'descricao' e 'id_origem_checklist' são obrigatórios."}), 400
 
+    # --- INÍCIO DA VALIDAÇÃO ROBUSTA ---
+    if not isinstance(placa_str, str) or placa_str.strip().upper() == 'N/A' or not placa_str.strip():
+        logging.warning(f"API /api/ss/nova: Requisição recebida com placa inválida ou 'N/A'. Payload: {dados}")
+        return jsonify({"status": "erro", "mensagem": f"A placa do veículo foi enviada como '{placa_str}', o que é inválido."}), 400
+
+    placa_obj = Placa.query.filter(db.func.upper(Placa.placa) == placa_str.strip().upper()).first()
+    if not placa_obj:
+        logging.warning(f"API /api/ss/nova: Placa '{placa_str}' não encontrada no cadastro.")
+        return jsonify({"status": "erro", "mensagem": f"A placa '{placa_str}' não foi encontrada no sistema de Manutenção."}), 404
+    # --- FIM DA VALIDAÇÃO ROBUSTA ---
+
     try:
-        # Busca o usuário padrão para registrar a SS
         sistema_user = Usuario.query.filter_by(nome="Sistema").first()
         if not sistema_user:
             logging.error("CRÍTICO: Usuário 'Sistema' não encontrado no banco de dados.")
             return jsonify({"status": "erro", "mensagem": "Configuração interna: Usuário 'Sistema' não encontrado."}), 500
         
-        # Lógica de atualização opcional da placa
         api_filial = dados.get('unidade_solicitante')
         api_unidade = dados.get('operacao_solicitante')
-        placa_obj = Placa.query.filter_by(placa=placa_str).first()
-        if placa_obj:
-            if api_filial:
-                placa_obj.filial = api_filial
-            if api_unidade:
-                placa_obj.unidade = api_unidade
-        else:
-            logging.warning(f"Placa {placa_str} recebida via API não foi encontrada no cadastro de placas.")
+        if api_filial:
+            placa_obj.filial = api_filial
+        if api_unidade:
+            placa_obj.unidade = api_unidade
 
-        # Monta a descrição final para a SS
         solicitante_externo = dados.get('solicitante_externo')
         descricao_final = descricao_original
         if solicitante_externo:
             info_header = f"Enviado por: {solicitante_externo}"
             if api_filial:
                 info_header += f" (Filial: {api_filial})"
-            descricao_final = f"{info_header}\\n--------------------\\n{descricao_original}"
+            descricao_final = f"{info_header}\n--------------------\n{descricao_original}"
 
-        # --- LÓGICA PRINCIPAL CORRIGIDA ---
         nova_ss = SolicitacaoServico(
-            placa=placa_str,
+            placa=placa_obj.placa, # Usando a placa validada do objeto
             descricao=descricao_final,
             usuario_id=sistema_user.id,
             status='Recebido via API',
             data_previsao_parada=None,
-            id_externo=str(id_origem) # <-- Salva o ID na coluna correta
+            id_externo=str(id_origem)
         )
         db.session.add(nova_ss)
         db.session.commit()
         
-        logging.info(f"SS {nova_ss.id} para a placa {placa_str} criada com sucesso via API, com ID Externo {id_origem}.")
+        logging.info(f"SS {nova_ss.id} para a placa {placa_obj.placa} criada com sucesso via API, com ID Externo {id_origem}.")
 
         return jsonify({
             "status": "sucesso",
@@ -288,14 +285,12 @@ def finalizar_solicitacao():
         flash("Solicitação não encontrada!", "danger")
         return redirect(url_for('ss.gerenciar_solicitacoes'))
 
-    # 1. Atualiza o banco de dados local
     ss.status = status
     ss.numero_os = numero_os
     ss.observacao_interna = obs_interna
-    ss.data_resposta_externa = datetime.utcnow() # Reutilizando para marcar a data de finalização
+    ss.data_resposta_externa = datetime.utcnow()
     db.session.commit()
 
-    # 2. Envia a finalização para a API externa, se houver um ID externo
     if ss.id_externo:
         sucesso_api, msg_api = enviar_finalizacao_para_checklist(
             ss.id_externo, status, numero_os, obs_interna
