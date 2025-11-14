@@ -124,3 +124,6 @@ def create_app():
     # app.register_blueprint(api_bp, url_prefix='/api') # Comentado para remover o conflito
 
     return app
+
+# Cria a instância da aplicação para ser encontrada pelo Gunicorn
+app = create_app()
