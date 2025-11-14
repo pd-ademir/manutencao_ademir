@@ -1084,18 +1084,18 @@ def logout():
 def gerenciar_usuarios():
     usuarios = Usuario.query.order_by(Usuario.id).all()
     
-    # Busca por filiais e unidades únicas para os dropdowns
-    filiais_query = db.session.query(Placa.filial).distinct().order_by(Placa.filial).all()
+    # Busca apenas por unidades únicas para o dropdown
     unidades_query = db.session.query(Placa.unidade).distinct().order_by(Placa.unidade).all()
     
-    # Extrai os valores da tupla (ex: [('NOME',), ...]) para uma lista simples
-    lista_filiais = [f[0] for f in filiais_query if f[0]]
+    # Extrai os valores da tupla para uma lista simples
     lista_unidades = [u[0] for u in unidades_query if u[0]]
     
+    # A variável 'filiais' foi removida do render_template
     return render_template('cadastro_usuario.html', 
                            usuarios=usuarios,
-                           filiais=lista_filiais,
                            unidades=lista_unidades)
+
+
 
 @main.route('/usuarios/adicionar', methods=['POST'])
 @login_required

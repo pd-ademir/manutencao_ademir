@@ -44,12 +44,7 @@
                     </div>
                     <div class="col-md-2 mb-3">
                         <label for="filial" class="form-label">Filial:</label>
-                        <select id="filial" name="filial" class="form-select">
-                            <option value="">Nenhuma</option>
-                            {% for f in filiais %}
-                            <option value="{{ f }}">{{ f }}</option>
-                            {% endfor %}
-                        </select>
+                        <input type="text" id="filial" name="filial" class="form-control" placeholder="Digite a filial (opcional)">
                     </div>
                     <div class="col-md-2 mb-3">
                         <label for="unidade" class="form-label">Unidade:</label>
