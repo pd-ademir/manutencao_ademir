@@ -1,8 +1,7 @@
-
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
 from .models import db, SolicitacaoServico, Placa, Usuario
-from .extensions import csrf  # Importa o objeto csrf
+from .extensions import csrf
 from datetime import datetime
 import requests
 import os
@@ -17,15 +16,19 @@ ss_bp = Blueprint('ss', __name__, url_prefix='/ss')
 
 def enviar_para_outra_app(dados):
     """
-    Envia os dados da solicitação para a API do sistema de checklist.
+    Envia os dados da solicitação para a API do sistema de checklist, escolhendo a URL correta.
     """
-    url_api_checklist = os.environ.get('URL_API_CHECKLIST', 'URL_DA_OUTRA_APP') 
-    
-    if url_api_checklist == 'URL_DA_OUTRA_APP':
-        print("AVISO: A URL da API de Checklist não está configurada. Usando valor padrão.")
+    ambiente = os.environ.get('AMBIENTE', 'local')
+    if ambiente == 'cloud':
+        url_api_checklist = os.environ.get('URL_API_CHECKLIST_PRODUCAO')
+    else:
+        url_api_checklist = os.environ.get('URL_API_CHECKLIST_LOCAL')
+
+    if not url_api_checklist:
+        logging.error(f"URL da API do Checklist para o ambiente '{ambiente}' não está configurada.")
+        return None
 
     try:
-        # --- AJUSTE NO PAYLOAD PARA CORRESPONDER À API DE DESTINO ---
         payload = {
             'placa': dados.get('placa'),
             'descricao': dados.get('descricao'),
@@ -33,19 +36,20 @@ def enviar_para_outra_app(dados):
             'id_externo': dados.get('id_local')
         }
         
+        logging.info(f"Enviando para Checklist ({ambiente}): URL={url_api_checklist} Payload={payload}")
         response = requests.post(url_api_checklist, json=payload)
         response.raise_for_status()
         
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"Erro ao enviar dados para a API do Checklist: {e}")
+        logging.error(f"Erro ao enviar dados para a API do Checklist: {e}")
         return None
+
 
 @ss_bp.route('/solicitar', methods=['GET', 'POST'])
 @login_required
 def solicitar_servico():
     if request.method == 'POST':
-        # ... (a lógica do POST para criar uma nova solicitação permanece a mesma) ...
         placa = request.form.get('placa')
         descricao = request.form.get('descricao')
         data_previsao_str = request.form.get('data_previsao_parada')
@@ -90,31 +94,33 @@ def solicitar_servico():
         db.session.commit()
         return redirect(url_for('ss.solicitar_servico'))
 
-    # --- LÓGICA DE FILTRO ATUALIZADA PARA GET ---
+    # Lógica de filtro para GET
     filial_filtro = request.args.get('filial', '')
     unidade_filtro = request.args.get('unidade', '')
 
     query_placas = Placa.query
     query_solicitacoes = SolicitacaoServico.query.options(joinedload(SolicitacaoServico.usuario))
 
-    if current_user.tipo == 'adm':
-        if filial_filtro:
-            query_placas = query_placas.filter(Placa.filial == filial_filtro)
-            query_solicitacoes = query_solicitacoes.join(Placa, SolicitacaoServico.placa == Placa.placa).filter(Placa.filial == filial_filtro)
-        if unidade_filtro:
-            query_placas = query_placas.filter(Placa.unidade == unidade_filtro)
-            if not filial_filtro:
-                 query_solicitacoes = query_solicitacoes.join(Placa, SolicitacaoServico.placa == Placa.placa)
-            query_solicitacoes = query_solicitacoes.filter(Placa.unidade == unidade_filtro)
-    else:
+    # Lógica de permissão...
+    if current_user.tipo != 'adm':
         if current_user.filial:
             query_placas = query_placas.filter(Placa.filial == current_user.filial)
             query_solicitacoes = query_solicitacoes.join(Placa, SolicitacaoServico.placa == Placa.placa).filter(Placa.filial == current_user.filial)
         if current_user.unidade:
-            query_placas = query_placas.filter(Placa.unidade == current_user.unidade)
+            # Adiciona join apenas se não foi feito
             if not current_user.filial:
-                 query_solicitacoes = query_solicitacoes.join(Placa, SolicitacaoServico.placa == Placa.placa)
+                query_solicitacoes = query_solicitacoes.join(Placa, SolicitacaoServico.placa == Placa.placa)
+            query_placas = query_placas.filter(Placa.unidade == current_user.unidade)
             query_solicitacoes = query_solicitacoes.filter(Placa.unidade == current_user.unidade)
+    else: # Se for ADM
+        if filial_filtro:
+            query_placas = query_placas.filter(Placa.filial == filial_filtro)
+            query_solicitacoes = query_solicitacoes.join(Placa, SolicitacaoServico.placa == Placa.placa).filter(Placa.filial == filial_filtro)
+        if unidade_filtro:
+             if not filial_filtro: # Adiciona join apenas se não foi feito
+                query_solicitacoes = query_solicitacoes.join(Placa, SolicitacaoServico.placa == Placa.placa)
+             query_placas = query_placas.filter(Placa.unidade == unidade_filtro)
+             query_solicitacoes = query_solicitacoes.filter(Placa.unidade == unidade_filtro)
 
     filiais_disponiveis = []
     unidades_disponiveis = []
@@ -133,38 +139,14 @@ def solicitar_servico():
                            filial_selecionada=filial_filtro,
                            unidade_selecionada=unidade_filtro)
 
-    # --- LÓGICA DE FILTRO DE PLACAS E SOLICITAÇÕES ---
-    query_placas = Placa.query
-    query_solicitacoes = SolicitacaoServico.query
-
-    if current_user.filial:
-        placas_filial = [p.placa for p in Placa.query.filter_by(filial=current_user.filial).all()]
-        query_placas = query_placas.filter(Placa.filial == current_user.filial)
-        query_solicitacoes = query_solicitacoes.filter(SolicitacaoServico.placa.in_(placas_filial))
-
-    if current_user.unidade:
-        placas_unidade = [p.placa for p in Placa.query.filter_by(unidade=current_user.unidade).all()]
-        query_placas = query_placas.filter(Placa.unidade == current_user.unidade)
-        query_solicitacoes = query_solicitacoes.filter(SolicitacaoServico.placa.in_(placas_unidade))
-
-    placas = query_placas.order_by(Placa.placa).all()
-    solicitacoes = query_solicitacoes.order_by(SolicitacaoServico.data_solicitacao.desc()).all()
-
-    return render_template('solicitacao_servico.html', solicitacoes=solicitacoes, placas=placas)
-
 
 @ss_bp.route('/webhook/atualizar_status', methods=['POST'])
-@csrf.exempt  # Isenta esta rota da verificação de CSRF
+@csrf.exempt
 def webhook_atualizar_status():
-    """
-    Endpoint para receber atualizações de status do sistema de checklist.
-    Ele deve enviar o ID que nós fornecemos (nosso id_local).
-    """
     dados = request.json
     if not dados or 'id_externo' not in dados:
-        return jsonify({"status": "erro", "mensagem": "Dados inválidos ou id_externo (nosso ID local) ausente"}), 400
+        return jsonify({"status": "erro", "mensagem": "Dados inválidos ou id_externo ausente"}), 400
 
-    # O checklist nos chama de volta usando o ID que enviamos no campo 'id_externo' deles
     nosso_id_local = str(dados.get('id_externo')) 
     solicitacao = SolicitacaoServico.query.filter_by(id=nosso_id_local).first()
     
@@ -177,11 +159,10 @@ def webhook_atualizar_status():
     
     db.session.commit()
     
-    print(f"Webhook: Status da SS com ID {solicitacao.id} atualizado para '{solicitacao.status}'")
+    logging.info(f"Webhook: Status da SS {solicitacao.id} atualizado para '{solicitacao.status}'")
     
     return jsonify({"status": "recebido"}), 200
 
-# --- ROTA DE GERENCIAMENTO COM FILTROS ---
 @ss_bp.route('/gerenciar')
 @login_required
 @requer_tipo("master", "comum", "adm")
@@ -204,7 +185,6 @@ def gerenciar_solicitacoes():
     return render_template('gerenciar_solicitacoes.html', solicitacoes=solicitacoes)
 
 
-# --- ROTA DE API ATUALIZADA PARA RECEBER SS DO CHECKLIST ---
 @ss_bp.route('/api/ss/nova', methods=['POST'])
 @csrf.exempt
 def api_nova_ss():
@@ -298,10 +278,6 @@ def api_nova_ss():
 @requer_tipo("master", "comum", "adm")
 def finalizar_solicitacao():
     ss_id = request.form.get('solicitacao_id')
-    
-    # --- LINHA DE DEPURAÇÃO ---
-    print(f"--- DEBUG: Tentando finalizar a SS com o ID recebido do formulário: '{ss_id}' ---")
-    
     status = request.form.get('status_final')
     numero_os = request.form.get('numero_os')
     obs_interna = request.form.get('observacao_interna')
@@ -310,8 +286,6 @@ def finalizar_solicitacao():
 
     if not ss:
         flash("Solicitação não encontrada!", "danger")
-        # --- LINHA DE DEPURAÇÃO ---
-        print(f"--- DEBUG: A busca no banco de dados com o ID '{ss_id}' não retornou resultados. ---")
         return redirect(url_for('ss.gerenciar_solicitacoes'))
 
     # 1. Atualiza o banco de dados local
@@ -327,8 +301,6 @@ def finalizar_solicitacao():
             ss.id_externo, status, numero_os, obs_interna
         )
         if not sucesso_api:
-            # Mesmo que a API falhe, a SS foi atualizada localmente.
-            # Apenas avisa o usuário sobre a falha na comunicação.
             flash(f"SS #{ss_id} finalizada localmente, mas falhou ao notificar a API externa: {msg_api}", "warning")
         else:
             flash(f"SS #{ss_id} finalizada com sucesso e API externa notificada!", "success")
@@ -339,11 +311,16 @@ def finalizar_solicitacao():
 
 
 def enviar_finalizacao_para_checklist(ss_id_externo, status_final, numero_os, observacao):
-    url_api = os.environ.get('URL_API_FINALIZAR_CHECKLIST')
+    ambiente = os.environ.get('AMBIENTE', 'local')
+    if ambiente == 'cloud':
+        url_api = os.environ.get('URL_API_FINALIZAR_CHECKLIST_PRODUCAO')
+    else:
+        url_api = os.environ.get('URL_API_FINALIZAR_CHECKLIST_LOCAL')
+
     secret_key = os.environ.get('SECRET_API_KEY')
 
     if not url_api:
-        logging.error("URL da API para finalizar checklist não configurada.")
+        logging.error(f"URL da API para finalizar checklist no ambiente '{ambiente}' não configurada.")
         return False, "URL da API de finalização não configurada."
     if not secret_key:
         logging.error("FATAL: SECRET_API_KEY não está configurada no ambiente.")
@@ -352,25 +329,23 @@ def enviar_finalizacao_para_checklist(ss_id_externo, status_final, numero_os, ob
     try:
         payload = {
             "id_checklist": ss_id_externo,
-            "status": status_final,  # Ex: 'Resolvido' ou 'Não Procede'
+            "status": status_final,
             "numero_os": numero_os,
             "observacao": observacao
         }
         headers = {
             'Content-Type': 'application/json',
-            'X-API-KEY': secret_key  # <-- **CORREÇÃO PRINCIPAL AQUI**
+            'X-API-KEY': secret_key
         }
         
+        logging.info(f"Finalizando no Checklist ({ambiente}): URL={url_api} Payload={payload}")
         response = requests.post(url_api, json=payload, headers=headers)
-        response.raise_for_status()  # Isso vai gerar um erro para status >= 400
+        response.raise_for_status()
         
-        # Como raise_for_status foi usado, a verificação manual do status code é redundante,
-        # mas mantemos o log para clareza.
         logging.info(f"API Externa: SS com ID Externo {ss_id_externo} finalizada com sucesso.")
         return True, "Finalizado com sucesso na API externa."
 
     except requests.exceptions.RequestException as e:
-        # A resposta do erro (e.status.response) pode conter detalhes valiosos
         msg_erro = f"Erro de comunicação com a API: {e}"
         if e.response is not None:
             msg_erro += f" | Status: {e.response.status_code} | Resposta: {e.response.text}"
