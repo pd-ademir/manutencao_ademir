@@ -44,7 +44,7 @@ def enviar_para_outra_app(dados):
     except requests.exceptions.RequestException as e:
         logging.error(f"Erro ao enviar dados para a API do Checklist: {e}")
         return None
-
+# Corecao no nome dos campos
 
 @ss_bp.route('/solicitar', methods=['GET', 'POST'])
 @login_required
