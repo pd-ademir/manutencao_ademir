@@ -6,6 +6,9 @@ __pycache__/
 # Pasta de Instância do Flask (contém o BD e outros arquivos de configuração)
 instance/
 
+logs/*.log
+
+
 # Banco de dados e Dumps
 *.db
 *.sqlite3
