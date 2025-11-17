@@ -843,10 +843,7 @@ def lista_placas():
     unidade_filtro = request.args.get('unidade', '').upper()
 
     # 2. Query base com filtro de permissão e joins necessários
-    #    Aderimos à Placa desde o início para usar como fonte de verdade.
-    query = filtrar_query_por_usuario(Veiculo.query, Veiculo).join(
-        Veiculo.placa_cavalo
-    ).options(
+    query = filtrar_query_por_usuario(Veiculo.query, Veiculo).options(
         joinedload(Veiculo.placa_cavalo),
         joinedload(Veiculo.placa_carreta1),
         joinedload(Veiculo.placa_carreta2),
@@ -856,35 +853,36 @@ def lista_placas():
     # Garante que apenas veículos ativos sejam exibidos.
     query = query.filter(Veiculo.ativo == True)
 
-    # 3. Aplica os filtros USANDO A FONTE DE VERDADE (Placa)
+    # 3. Aplica os filtros USANDO a tabela Veiculo como fonte
     if filial_filtro:
-        query = query.filter(Placa.filial == filial_filtro)
+        query = query.filter(Veiculo.filial == filial_filtro)
     if unidade_filtro:
-        query = query.filter(Placa.unidade == unidade_filtro)
+        query = query.filter(Veiculo.unidade == unidade_filtro)
 
-    # 4. Executa a query e agrupa os veículos por unidade (da Placa)
-    veiculos_filtrados = query.order_by(Placa.unidade, Veiculo.nome_conjunto).all()
+    # 4. Executa a query e agrupa os veículos pela unidade do CONJUNTO
+    veiculos_filtrados = query.order_by(Veiculo.unidade, Veiculo.nome_conjunto).all()
     unidades_agrupadas = defaultdict(list)
     for v in veiculos_filtrados:
-        # Agrupa pela unidade do cavalo, que é a nossa fonte de verdade.
-        if v.placa_cavalo and v.placa_cavalo.unidade:
-            unidades_agrupadas[v.placa_cavalo.unidade.upper()].append(v)
+        # --- CORREÇÃO APLICADA AQUI ---
+        # A fonte de verdade para a unidade do conjunto deve ser o próprio objeto 'v' (Veiculo).
+        if v.unidade:
+            unidades_agrupadas[v.unidade.upper()].append(v)
 
-    # 5. Lógica para popular os menus de filtro (baseada na Placa, que agora está consistente)
+    # 5. Lógica para popular os menus de filtro (baseada nos Veículos para consistência)
     filiais_disponiveis = []
     unidades_para_filtro = []
     filial_unidade_map = {}
     todas_as_unidades_gerais = []
 
     if current_user.tipo in ['adm', 'master']:
-        # Busca todas as combinações únicas de filial/unidade da tabela Placa
-        pares_filial_unidade = db.session.query(Placa.filial, Placa.unidade).distinct().filter(Placa.unidade != None, Placa.unidade != '').all()
+        # Busca todas as combinações únicas de filial/unidade da tabela Veiculo
+        pares_filial_unidade = db.session.query(Veiculo.filial, Veiculo.unidade).distinct().filter(Veiculo.unidade != None, Veiculo.unidade != '').all()
         
         filiais_set = set()
         unidades_set = set()
 
         for filial, unidade in pares_filial_unidade:
-            unidades_set.add(unidade) # Adiciona a unidade à lista de todas as unidades
+            unidades_set.add(unidade)
             if filial:
                 filiais_set.add(filial)
                 if filial not in filial_unidade_map:
@@ -913,6 +911,7 @@ def lista_placas():
         unidade_selecionada=unidade_filtro,
         filial_unidade_map=filial_unidade_map
     )
+
 
 
 
