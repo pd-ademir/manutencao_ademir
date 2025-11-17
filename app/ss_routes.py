@@ -19,7 +19,9 @@ def enviar_para_outra_app(dados):
     Envia os dados da solicitação para a API do sistema de checklist, escolhendo a URL correta.
     """
     ambiente = os.environ.get('AMBIENTE', 'local')
-    if ambiente == 'cloud':
+    
+    # CORREÇÃO: A condição agora verifica 'producao' em vez de 'cloud'.
+    if ambiente == 'producao':
         url_api_checklist = os.environ.get('URL_API_CHECKLIST_PRODUCAO')
     else:
         url_api_checklist = os.environ.get('URL_API_CHECKLIST_LOCAL')
@@ -29,12 +31,11 @@ def enviar_para_outra_app(dados):
         return None
 
     try:
-        # Payload corrigido para corresponder ao que o sistema de Checklist espera
         payload = {
             'placa': dados.get('placa'),
             'descricao': dados.get('descricao'),
             'solicitante_externo': dados.get('solicitante_externo'),
-            'id_origem_checklist': dados.get('id_local') # Enviando o ID local como 'id_origem_checklist'
+            'id_origem_checklist': dados.get('id_local')
         }
         
         logging.info(f"Enviando para Checklist ({ambiente}): URL={url_api_checklist} Payload={payload}")
@@ -45,6 +46,7 @@ def enviar_para_outra_app(dados):
     except requests.exceptions.RequestException as e:
         logging.error(f"Erro ao enviar dados para a API do Checklist: {e}")
         return None
+
 
 
 @ss_bp.route('/solicitar', methods=['GET', 'POST'])
@@ -308,7 +310,9 @@ def finalizar_solicitacao():
 
 def enviar_finalizacao_para_checklist(ss_id_externo, status_final, numero_os, observacao):
     ambiente = os.environ.get('AMBIENTE', 'local')
-    if ambiente == 'cloud':
+
+    # CORREÇÃO: A condição agora verifica 'producao' em vez de 'cloud'.
+    if ambiente == 'producao':
         url_api = os.environ.get('URL_API_FINALIZAR_CHECKLIST_PRODUCAO')
     else:
         url_api = os.environ.get('URL_API_FINALIZAR_CHECKLIST_LOCAL')
