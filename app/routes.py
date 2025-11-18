@@ -261,7 +261,12 @@ def plano_manutencao_pdf():
     # --- 1. Busca e processamento de dados ---
     unidade_selecionada = request.args.get('unidade', '')
     filial_selecionada = request.args.get('filial', '')
-    query = filtrar_query_por_usuario(Veiculo.query, Veiculo)
+
+    # =============================== ALTERAÇÃO REALIZADA AQUI ===============================
+    # Adicionado filtro para buscar apenas veículos ATIVOS.
+    query = filtrar_query_por_usuario(Veiculo.query, Veiculo).filter(Veiculo.ativo == True)
+    # =======================================================================================
+
     if unidade_selecionada:
         query = query.filter(Veiculo.unidade == unidade_selecionada)
     if filial_selecionada and current_user.tipo == 'adm':
@@ -279,10 +284,8 @@ def plano_manutencao_pdf():
 
     # --- 2. Preparação dos dados para a tabela do PDF ---
     table_data = []
-    # Cabeçalho da Tabela
     table_data.append(['Veículo', 'Preventiva', 'Intermediária', 'Diferencial', 'Câmbio', 'Rev. Carreta'])
 
-    # Estilos de parágrafo
     styles = getSampleStyleSheet()
     style_normal = ParagraphStyle(name='Normal', parent=styles['Normal'], alignment=TA_CENTER, fontSize=7, leading=9)
     style_danger = ParagraphStyle(name='Danger', parent=style_normal, textColor=colors.red)
@@ -294,17 +297,13 @@ def plano_manutencao_pdf():
         row = []
         motorista_str = v.motorista.nome if v.motorista else 'N/D'
         
-        # ======================================= ÁREA AJUSTADA =======================================
-        # Constrói a string de informações do veículo passo a passo
         info_str = f"<b>{v.nome_conjunto}</b><br/><font size='7' color='grey'>{motorista_str}</font>"
         
-        # Adiciona o KM atual se existir
         if v.placa_cavalo and v.placa_cavalo.km_atual:
             km_formatado = format_km(v.placa_cavalo.km_atual)
             info_str += f"<br/><font size='7'><b>KM: {km_formatado}</b></font>"
             
         row.append(Paragraph(info_str, style_vehicle))
-        # ===================================== FIM DO AJUSTE ======================================
 
         if v.placa_cavalo:
             km_atual = v.placa_cavalo.km_atual or 0
