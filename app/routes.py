@@ -258,7 +258,7 @@ main.app_template_filter('format_km')(format_km) # Registra a função como um f
 @login_required
 def plano_manutencao_pdf():
     """Gera um PDF do plano de manutenção usando ReportLab com layout corrigido."""
-    # --- 1. Busca e processamento de dados (lógica mantida) ---
+    # --- 1. Busca e processamento de dados ---
     unidade_selecionada = request.args.get('unidade', '')
     filial_selecionada = request.args.get('filial', '')
     query = filtrar_query_por_usuario(Veiculo.query, Veiculo)
@@ -293,7 +293,18 @@ def plano_manutencao_pdf():
     for v in veiculos_ordenados:
         row = []
         motorista_str = v.motorista.nome if v.motorista else 'N/D'
-        row.append(Paragraph(f"<b>{v.nome_conjunto}</b><br/><font size='7' color='grey'>{motorista_str}</font>", style_vehicle))
+        
+        # ======================================= ÁREA AJUSTADA =======================================
+        # Constrói a string de informações do veículo passo a passo
+        info_str = f"<b>{v.nome_conjunto}</b><br/><font size='7' color='grey'>{motorista_str}</font>"
+        
+        # Adiciona o KM atual se existir
+        if v.placa_cavalo and v.placa_cavalo.km_atual:
+            km_formatado = format_km(v.placa_cavalo.km_atual)
+            info_str += f"<br/><font size='7'><b>KM: {km_formatado}</b></font>"
+            
+        row.append(Paragraph(info_str, style_vehicle))
+        # ===================================== FIM DO AJUSTE ======================================
 
         if v.placa_cavalo:
             km_atual = v.placa_cavalo.km_atual or 0
@@ -326,7 +337,6 @@ def plano_manutencao_pdf():
 
     # --- 3. Construção do PDF com ReportLab ---
     pdf_buffer = BytesIO()
-    # Aumentando a margem superior para dar espaço ao cabeçalho
     doc = SimpleDocTemplate(pdf_buffer, pagesize=landscape(A4), leftMargin=1.5*cm, rightMargin=1.5*cm, topMargin=4*cm, bottomMargin=2.5*cm)
 
     logo_path = os.path.join(current_app.root_path, 'static', 'logo.jpg')
@@ -341,20 +351,16 @@ def plano_manutencao_pdf():
 
     def header_footer(canvas, doc):
         canvas.saveState()
-        # ** LÓGICA DE POSICIONAMENTO DO CABEÇALHO CORRIGIDA **
         header_table = Table([[logo, header_paragraph]], colWidths=[4*cm, doc.width - 4*cm], style=[('VALIGN', (0,0), (-1,-1), 'MIDDLE')])
         
         page_width, page_height = doc.pagesize
         w, h = header_table.wrap(doc.width, doc.topMargin)
-        # Posiciona o cabeçalho a 1.5cm do topo da página
         header_table.drawOn(canvas, doc.leftMargin, page_height - 1.5*cm - h)
         
-        # Posiciona a linha abaixo do cabeçalho
         line_y = page_height - 1.5*cm - h - 0.2*cm
         canvas.setStrokeColorRGB(0.7, 0.7, 0.7)
         canvas.line(doc.leftMargin, line_y, doc.leftMargin + doc.width, line_y)
         
-        # Rodapé (mantido)
         canvas.setFont('Helvetica', 8)
         canvas.drawString(doc.leftMargin, 1.5*cm, "Sistema de Gestão de Frotas")
         canvas.drawRightString(doc.leftMargin + doc.width, 1.5*cm, f"Página {doc.page}")
@@ -367,10 +373,9 @@ def plano_manutencao_pdf():
         ('BOTTOMPADDING', (0,0), (-1,0), 8), ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#cccccc')),
     ])
 
-    # ** LARGURA DAS COLUNAS AJUSTADA **
     manutencao_col_width = 3.2 * cm
     col_widths = [
-        doc.width - (manutencao_col_width * 5), # Coluna 'Veículo' usa o espaço restante
+        doc.width - (manutencao_col_width * 5),
         manutencao_col_width, manutencao_col_width, manutencao_col_width, manutencao_col_width, manutencao_col_width
     ]
     
