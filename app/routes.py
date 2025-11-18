@@ -1565,8 +1565,11 @@ def plano_manutencao():
     unidade_selecionada = request.args.get('unidade', '')
     filial_selecionada = request.args.get('filial', '') if current_user.tipo == 'adm' else ''
 
-    # 1. APLICA O FILTRO DE PERMISSÃO E FILTROS DO FORMULÁRIO
-    query = filtrar_query_por_usuario(Veiculo.query, Veiculo)
+    # 1. APLICA O FILTRO DE PERMISSÃO, STATUS ATIVO E FILTROS DO FORMULÁRIO
+    # =============================== ALTERAÇÃO REALIZADA AQUI ===============================
+    query = filtrar_query_por_usuario(Veiculo.query, Veiculo).filter(Veiculo.ativo == True)
+    # =======================================================================================
+    
     if unidade_selecionada:
         query = query.filter(Veiculo.unidade == unidade_selecionada)
     if filial_selecionada:
@@ -1637,6 +1640,7 @@ def plano_manutencao():
         filial_selecionada=filial_selecionada,
         current_date=date.today()
     )
+
 
 
 
