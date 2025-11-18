@@ -83,6 +83,13 @@
                             <td class="veiculo-info">
                                 <h6 class="mb-0"><strong>{{ veiculo.nome_conjunto }}</strong></h6>
                                 <small class="text-muted d-block">{{ veiculo.motorista.nome if veiculo.motorista else 'Motorista não definido' }}</small>
+                                <!-- ======================================= ÁREA ADICIONADA ======================================= -->
+                                {% if veiculo.placa_cavalo and veiculo.placa_cavalo.km_atual %}
+                                <div class="mt-1">
+                                    <span class="badge bg-dark">KM: {{ veiculo.placa_cavalo.km_atual|format_km }}</span>
+                                </div>
+                                {% endif %}
+                                <!-- ===================================== FIM DA ADIÇÃO ====================================== -->
                                 <span class="badge bg-secondary me-1">{{ veiculo.unidade }}</span>
                                 <span class="badge bg-primary">{{ veiculo.filial }}</span>
                             </td>
